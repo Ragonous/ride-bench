@@ -8,6 +8,10 @@ This is a single self-contained `index.html` file — no build step, no server, 
 
 Just open `index.html` in any browser — double-click it, or drag it into a browser tab. That's it.
 
+### Getting Started (in-app)
+
+The app opens on a **Getting Started** view by default — a static reference page (no inputs/calculations of its own) that walks through measuring corner weights/CG/tire radius/wheelbase once up front, gives a first-time walkthrough for each tool, and calls out the specific spots where the two tools' numbers can drift out of sync (see "How the tools relate" below). It has buttons at the bottom that jump straight into either tool.
+
 ## Host it for free so you can get to it from any device
 
 **GitHub Pages** — free static hosting straight from this repo, no server or account beyond GitHub itself:
@@ -56,6 +60,16 @@ The page has its own "What do these settings mean?" panel explaining spring rate
 ### Coming next
 - **Steering Geometry** — bump-steer and Ackerman checks for the coil/radius-arm front end.
 - **Ride Height Log** — track measured ride heights and settings changes over time.
+
+## How the tools relate
+
+4-Link Geometry and Spring & Bag Rate are **independent** — each keeps its own state in its own `localStorage` key, and neither reads or writes the other's fields. Nothing is shared or auto-synced, so it's on you to keep the numbers consistent by hand:
+
+- **Corner weight vs. CG position** — the corner weight you enter in Spring & Bag Rate isn't linked to the CG height/position you enter in 4-Link Geometry. Change one (e.g. after a corner-weigh) and sanity-check the other.
+- **Motion ratio per mode** — Spring & Bag Rate stores motion ratio separately for coil mode and air mode on the same corner. Switching modes doesn't carry the value over — recheck it.
+- **Air spring rate is pressure-dependent** — a wheel rate calculated at one bag pressure doesn't hold once you change ride height by changing pressure. Recalculate after adjusting.
+
+The in-app **Getting Started** view documents this in more detail, with first-time walkthroughs for each tool.
 
 ## App structure
 

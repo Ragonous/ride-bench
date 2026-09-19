@@ -220,7 +220,8 @@ footer.credit a{ color:var(--accent-2); }
     </div>
     <div class="nav-group">
       <div class="group-label">Suspension</div>
-      <button class="nav-item active" data-view="view-4link" type="button">4-Link Geometry</button>
+      <button class="nav-item active" data-view="view-getting-started" type="button">Getting Started</button>
+      <button class="nav-item" data-view="view-4link" type="button">4-Link Geometry</button>
       <button class="nav-item" data-view="view-springrate" type="button">Spring &amp; Bag Rate</button>
       <button class="nav-item disabled" type="button" disabled>Steering Geometry <span class="soon">Soon</span></button>
       <button class="nav-item disabled" type="button" disabled>Ride Height Log <span class="soon">Soon</span></button>
@@ -228,7 +229,84 @@ footer.credit a{ color:var(--accent-2); }
   </nav>
 
   <main class="main">
-  <section class="app" id="view-4link" data-view-panel>
+  <section class="app" id="view-getting-started" data-view-panel>
+  <header class="top">
+    <div class="title-block">
+      <h1>Getting Started</h1>
+      <div class="sub">Ride Bench has two independent tools right now — this page explains how to use each one and where their numbers need to agree even though the app doesn't check that for you.</div>
+    </div>
+  </header>
+
+  <div class="panel">
+    <h2>Before you touch either tool: measure these once</h2>
+    <div class="notes">
+      <ul>
+        <li>Corner weights — all four corners (front left, front right, rear left, rear right)</li>
+        <li>CG height and CG fore-aft position</li>
+        <li>Loaded tire radius</li>
+        <li>Wheelbase</li>
+      </ul>
+      Neither tool shares these numbers with the other — 4-Link Geometry and Spring &amp; Bag Rate each store their own independent copies. Getting real measurements up front, before you start typing numbers into either tool, is what keeps both tools consistent with each other.
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>4-Link Geometry — first-time walkthrough</h2>
+    <div class="notes">
+      <ol>
+        <li>Set Wheelbase, CG position, CG height, and tire radius in <strong>Vehicle Reference</strong> first — the anti-squat math depends on these.</li>
+        <li>Place the four pivots (<strong>Fu/Au</strong> for the upper link, <strong>Fl/Al</strong> for the lower link) to match real or planned bracket locations.</li>
+        <li>Read <strong>Anti-Squat %</strong> at travel = 0 as your baseline number.</li>
+        <li>Run the travel slider through bump and droop and watch anti-squat, the instant center, and pinion angle change shift — geometry that looks good at rest can look very different at the extremes of travel.</li>
+      </ol>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>Spring &amp; Bag Rate — first-time walkthrough</h2>
+    <div class="notes">
+      <ol>
+        <li>Pick <strong>Coil spring</strong> or <strong>Air spring (bag)</strong> mode.</li>
+        <li>Enter that corner's real weight and select it as the <strong>"Corner being calculated."</strong></li>
+        <li>Fill in the spring/bag fields for that mode.</li>
+        <li>Read <strong>Wheel Rate</strong> first — it accounts for motion ratio, unlike the raw spring rate.</li>
+        <li>Read <strong>Ride Frequency</strong> last — it's the number that best predicts actual ride feel. Rear is usually tuned a bit above front.</li>
+      </ol>
+    </div>
+  </div>
+
+  <div class="panel">
+    <details class="help" open>
+      <summary>Where this can quietly go wrong</summary>
+      <div class="notes">
+        <dl>
+          <dt>Corner weight and CG position aren't linked</dt>
+          <dd>The corner weight you enter in Spring &amp; Bag Rate isn't connected to the CG position you enter in 4-Link Geometry. If you change one — say, after a corner-weigh or after adding weight to the truck — sanity-check the other by hand.</dd>
+
+          <dt>Motion ratio is stored separately per mode</dt>
+          <dd>Motion ratio is kept as two separate values on the same corner — one for coil mode, one for air mode. If you switch modes on a corner, recheck that the motion ratio for the new mode is still correct; it won't carry over from the other mode.</dd>
+
+          <dt>Air spring rate depends on pressure</dt>
+          <dd>An air spring's rate is pressure-dependent, so a wheel rate calculated at one pressure doesn't hold once you change ride height by changing pressure. Recalculate after any pressure adjustment.</dd>
+        </dl>
+      </div>
+    </details>
+  </div>
+
+  <div class="panel">
+    <h2>Jump into a tool</h2>
+    <div class="top-actions">
+      <button class="chip primary nav-item" data-view="view-4link" type="button" style="width:auto;">Go to 4-Link Geometry</button>
+      <button class="chip primary nav-item" data-view="view-springrate" type="button" style="width:auto;">Go to Spring &amp; Bag Rate</button>
+    </div>
+  </div>
+
+  <footer class="credit">
+    Runs entirely in your browser — nothing is sent anywhere.
+  </footer>
+  </section>
+
+  <section class="app" id="view-4link" data-view-panel hidden>
   <header class="top">
     <div class="title-block">
       <h1>Rear 4-Link Geometry</h1>
