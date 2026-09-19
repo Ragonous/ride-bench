@@ -10,7 +10,7 @@ Just open `index.html` in any browser — double-click it, or drag it into a bro
 
 ### Getting Started (in-app)
 
-The app opens on a **Getting Started** view by default — a static reference page (no inputs/calculations of its own) that walks through measuring corner weights/CG/tire radius/wheelbase once up front, gives a first-time walkthrough for each tool, and calls out the spots where numbers can still drift apart even with a shared Vehicle Profile (see "How the tools relate" below). It has buttons at the bottom that jump straight into Vehicle Profile or either tool.
+The app opens on a **Getting Started** view by default — a static reference page (no inputs/calculations of its own) that walks through the order to use the app in: fill in Vehicle Profile first, then 4-Link Geometry, then Spring & Bag Rate, plus a reminder to keep Vehicle Profile current as the build progresses (see "How the tools relate" below). It has buttons at the bottom that jump straight into Vehicle Profile or either tool.
 
 ## Vehicle Profile (shared data)
 
@@ -77,7 +77,7 @@ The page has its own "What do these settings mean?" panel explaining spring rate
 - **Ride Height Log** — track measured ride heights and settings changes over time.
 - **3D Interactive View** — a 3D look at the suspension geometry, beyond the current 2D side view.
 
-(The Getting Started view, listed above under "Getting Started (in-app)," is already built — the sidebar roadmap order is Vehicle Profile → Getting Started → 4-Link Geometry → Spring & Bag Rate → Steering Geometry → Ride Height Log → 3D Interactive View.)
+The sidebar's full roadmap order is Vehicle Profile → Getting Started → 4-Link Geometry → Spring & Bag Rate → Steering Geometry → Ride Height Log → 3D Interactive View.
 
 ## How the tools relate
 

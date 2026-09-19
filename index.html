@@ -331,29 +331,26 @@ footer.credit a{ color:var(--accent-2); }
   <header class="top">
     <div class="title-block">
       <h1>Getting Started</h1>
-      <div class="sub">Ride Bench's suspension tools share one Vehicle Profile for truck-level numbers (corner weights, CG, wheelbase, tire radius) — this page explains how to use each tool and where numbers can still drift apart even so.</div>
+      <div class="sub">Ride Bench has one shared Vehicle Profile and two calculators that read from it. This page walks through the order to use them in.</div>
     </div>
   </header>
 
   <div class="panel">
-    <h2>Before you touch either tool: measure these once</h2>
+    <h2>Step 1: Fill in your Vehicle Profile</h2>
     <div class="notes">
-      <ul>
-        <li>Corner weights — all four corners (front left, front right, rear left, rear right)</li>
-        <li>CG height</li>
-        <li>Loaded tire radius</li>
-        <li>Wheelbase</li>
-      </ul>
-      Enter these once in <strong>Vehicle Profile</strong> — both 4-Link Geometry and Spring &amp; Bag Rate read them live from there, so there's only one place to keep up to date. CG fore-aft position isn't in that list because it's calculated automatically from corner weights and wheelbase, not measured directly.
+      Wheelbase, tire radius, CG height, and all four corner weights live in one place now — the <strong>Vehicle Profile</strong> view — and both calculators pull from it live. That makes it the first stop, every time.
+      <br><br>
+      CG fore-aft position isn't something you enter — it's calculated automatically from the corner weights and wheelbase, so it can't fall out of sync with them.
+      <br><br>
+      CG height has no simple measuring trick: tilt-table it if you can, otherwise it's an estimate. Corner weights are different — they need the truck built, rolling, and in near-final form (frame cut, bed mounted, drivetrain in) to mean anything. If the truck isn't there yet, placeholder numbers are fine for exploring the tools, but hold off on real spring or bag decisions until you have real weights.
     </div>
   </div>
 
   <div class="panel">
-    <h2>4-Link Geometry — first-time walkthrough</h2>
+    <h2>Step 2: 4-Link Geometry</h2>
     <div class="notes">
       <ol>
-        <li>Set Wheelbase, CG height, and tire radius in <strong>Vehicle Profile</strong> first — the anti-squat math depends on these (CG fore-aft comes along automatically from corner weights).</li>
-        <li>Place the four pivots (<strong>Fu/Au</strong> for the upper link, <strong>Fl/Al</strong> for the lower link) to match real or planned bracket locations.</li>
+        <li>Place (drag) the four pivots — <strong>Fu/Au</strong> for the upper link, <strong>Fl/Al</strong> for the lower link — to match real or planned bracket locations. This can be done before the truck is rolling, since it's driving where you'll put brackets, not something you measure after the fact.</li>
         <li>Read <strong>Anti-Squat %</strong> at travel = 0 as your baseline number.</li>
         <li>Run the travel slider through bump and droop and watch anti-squat, the instant center, and pinion angle change shift — geometry that looks good at rest can look very different at the extremes of travel.</li>
       </ol>
@@ -361,32 +358,23 @@ footer.credit a{ color:var(--accent-2); }
   </div>
 
   <div class="panel">
-    <h2>Spring &amp; Bag Rate — first-time walkthrough</h2>
+    <h2>Step 3: Spring &amp; Bag Rate</h2>
     <div class="notes">
       <ol>
-        <li>Pick <strong>Coil spring</strong> or <strong>Air spring (bag)</strong> mode.</li>
-        <li>Make sure that corner's real weight is entered in <strong>Vehicle Profile</strong>, then select it as the <strong>"Corner being calculated"</strong> here.</li>
-        <li>Fill in the spring/bag fields for that mode.</li>
+        <li>Pick <strong>Coil spring</strong> or <strong>Air spring (bag)</strong> mode, and select which corner you're calculating — its weight comes from the Vehicle Profile automatically now.</li>
+        <li>Fill in the spring/bag fields: rate and motion ratio for coil; pressure, area, volume, and motion ratio for air.</li>
         <li>Read <strong>Wheel Rate</strong> first — it accounts for motion ratio, unlike the raw spring rate.</li>
         <li>Read <strong>Ride Frequency</strong> last — it's the number that best predicts actual ride feel. Rear is usually tuned a bit above front.</li>
       </ol>
+      This tool's numbers are only as good as the corner weights sitting in the Vehicle Profile, so real scale weights matter more here than they do in the geometry tool.
     </div>
   </div>
 
   <div class="panel">
     <details class="help" open>
-      <summary>Where this can quietly go wrong</summary>
+      <summary>One thing to remember</summary>
       <div class="notes">
-        <dl>
-          <dt>Motion ratio is stored separately per mode</dt>
-          <dd>Motion ratio is kept as two separate values on the same corner — one for coil mode, one for air mode. If you switch modes on a corner, recheck that the motion ratio for the new mode is still correct; it won't carry over from the other mode.</dd>
-
-          <dt>Air spring rate depends on pressure</dt>
-          <dd>An air spring's rate is pressure-dependent, so a wheel rate calculated at one pressure doesn't hold once you change ride height by changing pressure. Recalculate after any pressure adjustment.</dd>
-
-          <dt>CG height is still a manual estimate</dt>
-          <dd>Corner weights and CG fore-aft position are solid once you've scaled the truck, but CG height has no easy scale trick — it stays whatever estimate you typed into Vehicle Profile until you measure it some other way (tilt table, etc.). Anti-squat is sensitive to this number, so revisit it if you get a real measurement.</dd>
-        </dl>
+        Since both calculators now read the same Vehicle Profile, correcting a number there updates both automatically — there's no more risk of the two tools disagreeing. The catch is that this only holds if the Vehicle Profile itself is kept current as the build progresses: re-weigh and update it once the truck is finished, not just once early on.
       </div>
     </details>
   </div>
