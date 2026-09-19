@@ -223,7 +223,14 @@ details.help .notes{ padding:0 12px 12px; }
 
 footer.credit{ text-align:center; font-size:.68rem; color:var(--muted); padding-top:4px; }
 footer.credit a{ color:var(--accent-2); }
+
+.scene-wrap{ background:var(--canvas-bg); border:1px solid var(--grid); border-radius:4px; overflow:hidden; position:relative; }
+canvas#scene3d{ display:block; width:100%; height:480px; touch-action:none; cursor:grab; }
+canvas#scene3d:active{ cursor:grabbing; }
+.toggle-row{ display:flex; align-items:center; gap:8px; font-size:.76rem; font-weight:600; color:var(--ink); margin-top:10px; }
+.toggle-row input[type="checkbox"]{ width:16px; height:16px; accent-color:var(--accent); cursor:pointer; }
 </style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/0.160.0/three.min.js"></script>
 </head>
 <body>
 <div class="shell">
@@ -240,7 +247,7 @@ footer.credit a{ color:var(--accent-2); }
       <button class="nav-item" data-view="view-springrate" type="button">Spring &amp; Bag Rate</button>
       <button class="nav-item" data-view="view-steering" type="button">Steering Geometry</button>
       <button class="nav-item" data-view="view-rideheight" type="button">Ride Height Log</button>
-      <button class="nav-item disabled" type="button" disabled>3D Interactive View <span class="soon">Soon</span></button>
+      <button class="nav-item" data-view="view-3d" type="button">3D Interactive View</button>
     </div>
   </nav>
 
@@ -941,6 +948,78 @@ footer.credit a{ color:var(--accent-2); }
     Runs entirely in your browser — nothing is sent anywhere, and every entry is saved locally as soon as you add it.
   </footer>
   </section>
+
+  <section class="app" id="view-3d" data-view-panel hidden>
+  <header class="top">
+    <div class="title-block">
+      <h1>3D Interactive View</h1>
+      <div class="sub">The whole chassis in 3D, built live from 4-Link Geometry's and Steering Geometry's saved pivots — drag to orbit, scroll to zoom.</div>
+    </div>
+  </header>
+
+  <div class="notes" id="td3Notice" hidden></div>
+
+  <div class="layout">
+    <div class="panel">
+      <h2>Chassis · drag to orbit, scroll to zoom</h2>
+      <div class="scene-wrap">
+        <canvas id="scene3d"></canvas>
+      </div>
+      <div class="travel-row">
+        <div class="labels">
+          <span>Droop</span>
+          <span class="state" id="td3TravelState">0.0° · static ride height</span>
+          <span>Bump</span>
+        </div>
+        <input type="range" id="td3TravelSlider" min="-20" max="20" value="0" step="0.5" />
+      </div>
+      <div class="toggle-row">
+        <input type="checkbox" id="td3ShowIC" />
+        <label for="td3ShowIC">Show rear instant-center &amp; extended link lines</label>
+      </div>
+    </div>
+
+    <div class="side-col" style="display:flex;flex-direction:column;gap:16px;">
+      <div class="panel">
+        <h2>What this is showing</h2>
+        <div class="notes">
+          Nothing here is a new input — every pivot comes straight from what's already saved in <strong>4-Link Geometry</strong> (rear) and <strong>Steering Geometry</strong> (front), and the frame width, wheelbase, and tire size come from <strong>Vehicle Profile</strong>. This view exists to show both ends of the truck moving through suspension travel <em>at once</em>, which neither 2D tool can do by itself since they're separate pages.
+        </div>
+      </div>
+
+      <div class="panel">
+        <details class="help" open>
+          <summary>What do these settings mean?</summary>
+          <div class="notes">
+            <dl>
+              <dt>Rear axle (from 4-Link Geometry)</dt>
+              <dd>The 4-Link tool's side-view linkage is drawn twice — mirrored to both sides of the vehicle centerline at half the track width — since a real 4-link rear normally has a symmetric upper/lower link pair on each side. A single axle tube connects the two sides at the linkage's average height and fore-aft position.</dd>
+
+              <dt>Front axle (from Steering Geometry)</dt>
+              <dd>Unlike the rear linkage, a track bar and drag link are <em>not</em> a mirrored left/right pair — there's exactly one of each, running at an angle across the truck. So instead of mirroring, this view places the track bar and drag link's actual pivots at their real left/right position directly, at the front axle's location (one wheelbase forward of the rear axle). An axle tube spans the full track width at their average height.</dd>
+
+              <dt>Travel slider</dt>
+              <dd>Drives both axles through the same bump/droop range as the 2D tools, using the exact same four-bar linkage solve (this view, 4-Link Geometry, and Steering Geometry all call the same shared solver, so the numbers agree). As in the 2D diagrams, the frame stays fixed and the axle moves relative to it — so at extreme travel a tire can appear to dip below or lift off the ground plane. That's a simplification carried over from the 2D tools, not a new bug here.</dd>
+
+              <dt>Show rear instant-center &amp; extended link lines</dt>
+              <dd>Draws the same instant-center construction the 4-Link tool shows in its side view. Off by default because it's easier to read up close in 2D than from an orbiting 3D camera — Steering Geometry doesn't have a single "instant center" the same way (its two links each sweep their own arc), so this toggle only affects the rear.</dd>
+            </dl>
+          </div>
+        </details>
+      </div>
+
+      <div class="panel">
+        <div class="notes">
+          <strong>Limits of this view:</strong> it's a visualization, not a new calculation — anti-squat and bump-steer numbers still live on their own 2D pages. Frame rail position/height, axle tube size, and tire width are drawn as reasonable simplified shapes, not real part dimensions. If 4-Link Geometry or Steering Geometry haven't been visited yet, this view falls back to their documented default pivots rather than erroring.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <footer class="credit">
+    Runs entirely in your browser — nothing is sent anywhere. This view only reads geometry already saved by other tools; it has no inputs of its own to save.
+  </footer>
+  </section>
   </main>
 </div>
 
@@ -959,6 +1038,79 @@ footer.credit a{ color:var(--accent-2); }
       }
     });
   });
+})();
+</script>
+<script>
+(function(){
+  "use strict";
+  // Shared, no-dependency kinematics module used by 4-Link Geometry, Steering Geometry,
+  // and the 3D Interactive View — one implementation of the four-bar linkage solve instead
+  // of a separate copy per tool.
+  function dist(a,b){ return Math.hypot(a.x-b.x, a.y-b.y); }
+
+  function lineIntersect(p1,p2,p3,p4){
+    var x1=p1.x,y1=p1.y,x2=p2.x,y2=p2.y,x3=p3.x,y3=p3.y,x4=p4.x,y4=p4.y;
+    var denom = (x1-x2)*(y3-y4) - (y1-y2)*(x3-x4);
+    if(Math.abs(denom) < 1e-9) return null;
+    var t = ((x1-x3)*(y3-y4) - (y1-y3)*(x3-x4)) / denom;
+    return { x: x1 + t*(x2-x1), y: y1 + t*(y2-y1) };
+  }
+
+  function circleIntersect(c1,r1,c2,r2){
+    var d = dist(c1,c2);
+    if(d > r1+r2 + 1e-6 || d < Math.abs(r1-r2) - 1e-6 || d < 1e-9) return [];
+    var a = (r1*r1 - r2*r2 + d*d) / (2*d);
+    var hh = Math.max(0, r1*r1 - a*a);
+    var h = Math.sqrt(hh);
+    var xm = c1.x + a*(c2.x-c1.x)/d;
+    var ym = c1.y + a*(c2.y-c1.y)/d;
+    var xs1 = xm + h*(c2.y-c1.y)/d;
+    var ys1 = ym - h*(c2.x-c1.x)/d;
+    var xs2 = xm - h*(c2.y-c1.y)/d;
+    var ys2 = ym + h*(c2.x-c1.x)/d;
+    return [{x:xs1,y:ys1},{x:xs2,y:ys2}];
+  }
+
+  function closerTo(pts, ref){
+    if(pts.length===0) return null;
+    if(pts.length===1) return pts[0];
+    return dist(pts[0],ref) <= dist(pts[1],ref) ? pts[0] : pts[1];
+  }
+
+  // Solves one side of a four-bar linkage for a given rotation of the "driven" link.
+  // Fdriven/Adriven0: frame pivot and current moving-end pivot of the link being rotated
+  //   (e.g. the 4-Link tool's lower link, or the Steering tool's track bar).
+  // Ffollower/Afollower0: frame pivot and current moving-end pivot of the other link,
+  //   whose new position is solved for given the rigid distance between the two moving ends
+  //   (e.g. the upper link / drag link).
+  // dThetaDeg: rotation applied to the driven link, in degrees.
+  // Returns { Adriven, Afollower, Ldriven, Lfollower, D, ok }, where ok is false if the
+  // requested rotation puts the linkage out of reach (in which case Afollower falls back
+  // to Afollower0).
+  function solveFourBar(Fdriven, Adriven0, Ffollower, Afollower0, dThetaDeg){
+    var Ldriven = dist(Fdriven, Adriven0);
+    var Lfollower = dist(Ffollower, Afollower0);
+    var D = dist(Adriven0, Afollower0);
+
+    var theta0 = Math.atan2(Adriven0.y-Fdriven.y, Adriven0.x-Fdriven.x);
+    var theta = theta0 + dThetaDeg*Math.PI/180;
+    var Adriven = { x: Fdriven.x + Ldriven*Math.cos(theta), y: Fdriven.y + Ldriven*Math.sin(theta) };
+
+    var candidates = circleIntersect(Ffollower, Lfollower, Adriven, D);
+    var Afollower = closerTo(candidates, Afollower0);
+    var ok = !!Afollower;
+    if(!Afollower) Afollower = Afollower0;
+
+    return { Adriven:Adriven, Afollower:Afollower, Ldriven:Ldriven, Lfollower:Lfollower, D:D, ok:ok };
+  }
+
+  window.RideBenchKinematics = {
+    dist: dist,
+    lineIntersect: lineIntersect,
+    circleIntersect: circleIntersect,
+    closerTo: closerTo,
+    solveFourBar: solveFourBar
+  };
 })();
 </script>
 <script>
@@ -1180,37 +1332,13 @@ footer.credit a{ color:var(--accent-2); }
   applyTheme();
 
   // ---------- geometry helpers ----------
-  function dist(a,b){ return Math.hypot(a.x-b.x, a.y-b.y); }
+  // The four-bar linkage solve (circle-circle intersection etc.) lives in the shared
+  // RideBenchKinematics module (see the script block right after the nav-switcher), so
+  // Steering Geometry and the 3D Interactive View use the exact same implementation.
+  var K = window.RideBenchKinematics;
+  function dist(a,b){ return K.dist(a,b); }
   function angleDeg(a,b){ return Math.atan2(b.y-a.y, b.x-a.x)*180/Math.PI; }
-
-  function lineIntersect(p1,p2,p3,p4){
-    var x1=p1.x,y1=p1.y,x2=p2.x,y2=p2.y,x3=p3.x,y3=p3.y,x4=p4.x,y4=p4.y;
-    var denom = (x1-x2)*(y3-y4) - (y1-y2)*(x3-x4);
-    if(Math.abs(denom) < 1e-9) return null;
-    var t = ((x1-x3)*(y3-y4) - (y1-y3)*(x3-x4)) / denom;
-    return { x: x1 + t*(x2-x1), y: y1 + t*(y2-y1) };
-  }
-
-  function circleIntersect(c1,r1,c2,r2){
-    var d = dist(c1,c2);
-    if(d > r1+r2 + 1e-6 || d < Math.abs(r1-r2) - 1e-6 || d < 1e-9) return [];
-    var a = (r1*r1 - r2*r2 + d*d) / (2*d);
-    var hh = Math.max(0, r1*r1 - a*a);
-    var h = Math.sqrt(hh);
-    var xm = c1.x + a*(c2.x-c1.x)/d;
-    var ym = c1.y + a*(c2.y-c1.y)/d;
-    var xs1 = xm + h*(c2.y-c1.y)/d;
-    var ys1 = ym - h*(c2.x-c1.x)/d;
-    var xs2 = xm - h*(c2.y-c1.y)/d;
-    var ys2 = ym + h*(c2.x-c1.x)/d;
-    return [{x:xs1,y:ys1},{x:xs2,y:ys2}];
-  }
-
-  function closerTo(pts, ref){
-    if(pts.length===0) return null;
-    if(pts.length===1) return pts[0];
-    return dist(pts[0],ref) <= dist(pts[1],ref) ? pts[0] : pts[1];
-  }
+  function lineIntersect(p1,p2,p3,p4){ return K.lineIntersect(p1,p2,p3,p4); }
 
   // ---------- coordinate mapping (world inches, y-up) <-> svg pixels ----------
   var PX = 4.4;
@@ -1221,21 +1349,8 @@ footer.credit a{ color:var(--accent-2); }
   function toWorld(p){ return { x: (p.x-ORIGIN_X)/PX, y: (GROUND_Y-p.y)/PX }; }
 
   function computeAtTravel(dThetaDeg){
-    var Fu=state.Fu, Fl=state.Fl;
-    var Lu = dist(Fu, state.Au);
-    var Ll = dist(Fl, state.Al);
-    var D  = dist(state.Au, state.Al);
-
-    var theta_l0 = Math.atan2(state.Al.y-Fl.y, state.Al.x-Fl.x);
-    var theta_l = theta_l0 + dThetaDeg*Math.PI/180;
-    var Al = { x: Fl.x + Ll*Math.cos(theta_l), y: Fl.y + Ll*Math.sin(theta_l) };
-
-    var candidates = circleIntersect(Fu, Lu, Al, D);
-    var Au = closerTo(candidates, state.Au);
-    var mechanismOk = !!Au;
-    if(!Au) Au = state.Au;
-
-    return { Fu:Fu, Fl:Fl, Au:Au, Al:Al, Lu:Lu, Ll:Ll, D:D, ok:mechanismOk };
+    var solved = K.solveFourBar(state.Fl, state.Al, state.Fu, state.Au, dThetaDeg);
+    return { Fu:state.Fu, Fl:state.Fl, Au:solved.Afollower, Al:solved.Adriven, Lu:solved.Lfollower, Ll:solved.Ldriven, D:solved.D, ok:solved.ok };
   }
 
   function computeAntiSquat(m){
@@ -1847,30 +1962,12 @@ footer.credit a{ color:var(--accent-2); }
     render();
   });
 
-  // ---------- geometry helpers (same technique as the 4-Link tool's linkage solve) ----------
-  function dist(a,b){ return Math.hypot(a.x-b.x, a.y-b.y); }
+  // ---------- geometry helpers ----------
+  // Same shared solver the 4-Link tool uses — see RideBenchKinematics in the script block
+  // right after the nav-switcher.
+  var K = window.RideBenchKinematics;
+  function dist(a,b){ return K.dist(a,b); }
   function angleDeg(a,b){ return Math.atan2(b.y-a.y, b.x-a.x)*180/Math.PI; }
-
-  function circleIntersect(c1,r1,c2,r2){
-    var d = dist(c1,c2);
-    if(d > r1+r2 + 1e-6 || d < Math.abs(r1-r2) - 1e-6 || d < 1e-9) return [];
-    var a = (r1*r1 - r2*r2 + d*d) / (2*d);
-    var hh = Math.max(0, r1*r1 - a*a);
-    var h = Math.sqrt(hh);
-    var xm = c1.x + a*(c2.x-c1.x)/d;
-    var ym = c1.y + a*(c2.y-c1.y)/d;
-    var xs1 = xm + h*(c2.y-c1.y)/d;
-    var ys1 = ym - h*(c2.x-c1.x)/d;
-    var xs2 = xm - h*(c2.y-c1.y)/d;
-    var ys2 = ym + h*(c2.x-c1.x)/d;
-    return [{x:xs1,y:ys1},{x:xs2,y:ys2}];
-  }
-
-  function closerTo(pts, ref){
-    if(pts.length===0) return null;
-    if(pts.length===1) return pts[0];
-    return dist(pts[0],ref) <= dist(pts[1],ref) ? pts[0] : pts[1];
-  }
 
   // ---------- coordinate mapping (world inches, y-up, origin at axle centerline) <-> svg pixels ----------
   var PX = 4.4;
@@ -1881,21 +1978,8 @@ footer.credit a{ color:var(--accent-2); }
   function toWorld(p){ return { x: (p.x-ORIGIN_X)/PX, y: (GROUND_Y-p.y)/PX }; }
 
   function computeAtTravel(dThetaDeg){
-    var Tf=state.Tf, Df=state.Df;
-    var Lt = dist(Tf, state.Ta);
-    var Ld = dist(Df, state.Da);
-    var D  = dist(state.Ta, state.Da);
-
-    var theta_t0 = Math.atan2(state.Ta.y-Tf.y, state.Ta.x-Tf.x);
-    var theta_t = theta_t0 + dThetaDeg*Math.PI/180;
-    var Ta = { x: Tf.x + Lt*Math.cos(theta_t), y: Tf.y + Lt*Math.sin(theta_t) };
-
-    var candidates = circleIntersect(Df, Ld, Ta, D);
-    var Da = closerTo(candidates, state.Da);
-    var mechanismOk = !!Da;
-    if(!Da) Da = state.Da;
-
-    return { Tf:Tf, Df:Df, Ta:Ta, Da:Da, Lt:Lt, Ld:Ld, D:D, ok:mechanismOk };
+    var solved = K.solveFourBar(state.Tf, state.Ta, state.Df, state.Da, dThetaDeg);
+    return { Tf:state.Tf, Df:state.Df, Ta:solved.Adriven, Da:solved.Afollower, Lt:solved.Ldriven, Ld:solved.Lfollower, D:solved.D, ok:solved.ok };
   }
 
   // Bump steer error: how far Da actually lands vs. where it would land if it swung
@@ -2351,6 +2435,338 @@ footer.credit a{ color:var(--accent-2); }
 
   document.getElementById("rhDate").value = todayISO();
   render();
+})();
+</script>
+<script>
+(function(){
+  "use strict";
+
+  if(typeof THREE === "undefined"){
+    var notice = document.getElementById("td3Notice");
+    if(notice){ notice.hidden = false; notice.textContent = "Three.js failed to load (no internet connection?) — the 3D view needs it and can't render without it."; }
+    return;
+  }
+
+  var K = window.RideBenchKinematics;
+
+  // ---------- reading other tools' saved data (read-only; this view has no inputs of its own) ----------
+  var VP_KEY = "vehicleProfile-v1";
+  var FOURLINK_KEY = "fourlink-geometry-v1";
+  var STEERING_KEY = "steering-geometry-v1";
+
+  var vpDefaults = { wheelbase:140, tireRadius:16.5, trackWidth:67 };
+  // Same documented defaults as the 4-Link and Steering Geometry tools' own scripts.
+  var fourlinkDefaults = { Fu:{x:26,y:27}, Au:{x:-2,y:22}, Fl:{x:34,y:13}, Al:{x:0,y:11} };
+  var steeringDefaults = { Tf:{x:-22,y:24}, Ta:{x:22,y:13}, Df:{x:-18,y:21}, Da:{x:18,y:10} };
+
+  var usedFallback = { fourlink:false, steering:false };
+
+  function loadVehicleProfile(){
+    try{
+      var raw = localStorage.getItem(VP_KEY);
+      if(!raw) return JSON.parse(JSON.stringify(vpDefaults));
+      var parsed = JSON.parse(raw);
+      var merged = JSON.parse(JSON.stringify(vpDefaults));
+      if(typeof parsed.wheelbase === "number") merged.wheelbase = parsed.wheelbase;
+      if(typeof parsed.tireRadius === "number") merged.tireRadius = parsed.tireRadius;
+      if(typeof parsed.trackWidth === "number") merged.trackWidth = parsed.trackWidth;
+      return merged;
+    }catch(e){ return JSON.parse(JSON.stringify(vpDefaults)); }
+  }
+  function loadFourLink(){
+    try{
+      var raw = localStorage.getItem(FOURLINK_KEY);
+      if(!raw){ usedFallback.fourlink = true; return JSON.parse(JSON.stringify(fourlinkDefaults)); }
+      var parsed = JSON.parse(raw);
+      var merged = JSON.parse(JSON.stringify(fourlinkDefaults));
+      ["Fu","Au","Fl","Al"].forEach(function(k){
+        if(parsed[k] && typeof parsed[k].x==="number" && typeof parsed[k].y==="number") merged[k] = parsed[k];
+      });
+      return merged;
+    }catch(e){ usedFallback.fourlink = true; return JSON.parse(JSON.stringify(fourlinkDefaults)); }
+  }
+  function loadSteering(){
+    try{
+      var raw = localStorage.getItem(STEERING_KEY);
+      if(!raw){ usedFallback.steering = true; return JSON.parse(JSON.stringify(steeringDefaults)); }
+      var parsed = JSON.parse(raw);
+      var merged = JSON.parse(JSON.stringify(steeringDefaults));
+      ["Tf","Ta","Df","Da"].forEach(function(k){
+        if(parsed[k] && typeof parsed[k].x==="number" && typeof parsed[k].y==="number") merged[k] = parsed[k];
+      });
+      return merged;
+    }catch(e){ usedFallback.steering = true; return JSON.parse(JSON.stringify(steeringDefaults)); }
+  }
+
+  var vehicleProfile, fourlink, steering, wheelbase, trackWidth, tireRadius;
+
+  function updateNotice(){
+    var notice = document.getElementById("td3Notice");
+    var parts = [];
+    if(usedFallback.fourlink) parts.push("4-Link Geometry");
+    if(usedFallback.steering) parts.push("Steering Geometry");
+    if(parts.length){
+      notice.hidden = false;
+      notice.innerHTML = "Showing default placeholder geometry for " + parts.join(" and ") + " — visit that tool and set up your own pivots to see your actual truck here.";
+    } else {
+      notice.hidden = true;
+    }
+  }
+
+  function refreshInputs(){
+    usedFallback.fourlink = false;
+    usedFallback.steering = false;
+    vehicleProfile = loadVehicleProfile();
+    fourlink = loadFourLink();
+    steering = loadSteering();
+    wheelbase = vehicleProfile.wheelbase;
+    trackWidth = vehicleProfile.trackWidth;
+    tireRadius = vehicleProfile.tireRadius;
+    updateNotice();
+  }
+  refreshInputs();
+
+  // ---------- three.js scene ----------
+  var canvas = document.getElementById("scene3d");
+  var renderer = new THREE.WebGLRenderer({ canvas:canvas, antialias:true });
+  var scene = new THREE.Scene();
+  var camera = new THREE.PerspectiveCamera(45, 1, 0.1, 3000);
+
+  function cssVar(name){ return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }
+
+  var staticGroup = new THREE.Group();
+  var dynamicGroup = new THREE.Group();
+  scene.add(staticGroup);
+  scene.add(dynamicGroup);
+
+  function buildStaticScene(){
+    scene.background = new THREE.Color(cssVar("--canvas-bg") || "#faf6ec");
+    staticGroup.clear();
+
+    var hemi = new THREE.HemisphereLight(0xffffff, 0x445055, 1.0);
+    var dir = new THREE.DirectionalLight(0xffffff, 0.7);
+    dir.position.set(80, 140, 60);
+    staticGroup.add(hemi);
+    staticGroup.add(dir);
+
+    var groundSize = Math.max(wheelbase + 120, trackWidth + 120);
+    var groundGeo = new THREE.PlaneGeometry(groundSize, groundSize);
+    var groundMat = new THREE.MeshStandardMaterial({ color: cssVar("--canvas-grid") || "#e2d9c4", roughness:1 });
+    var ground = new THREE.Mesh(groundGeo, groundMat);
+    ground.rotation.x = -Math.PI/2;
+    ground.position.set(wheelbase/2, 0, 0);
+    staticGroup.add(ground);
+  }
+
+  // ---------- geometry building helpers ----------
+  function sphereAt(p, radius, color){
+    var geo = new THREE.SphereGeometry(radius, 12, 10);
+    var mat = new THREE.MeshStandardMaterial({ color:color, roughness:0.5 });
+    var mesh = new THREE.Mesh(geo, mat);
+    mesh.position.set(p.x, p.y, p.z);
+    return mesh;
+  }
+  function rodBetween(p1, p2, radius, color){
+    var start = new THREE.Vector3(p1.x, p1.y, p1.z);
+    var end = new THREE.Vector3(p2.x, p2.y, p2.z);
+    var dir = new THREE.Vector3().subVectors(end, start);
+    var len = dir.length();
+    if(len < 1e-6) len = 1e-6;
+    var geo = new THREE.CylinderGeometry(radius, radius, len, 10);
+    var mat = new THREE.MeshStandardMaterial({ color:color, roughness:0.55, metalness:0.15 });
+    var mesh = new THREE.Mesh(geo, mat);
+    mesh.position.copy(start).add(end).multiplyScalar(0.5);
+    mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0), dir.clone().normalize());
+    return mesh;
+  }
+  function thinLine(p1, p2, color, opacity){
+    var geo = new THREE.BufferGeometry().setFromPoints([
+      new THREE.Vector3(p1.x,p1.y,p1.z), new THREE.Vector3(p2.x,p2.y,p2.z)
+    ]);
+    var mat = new THREE.LineBasicMaterial({ color:color, transparent:true, opacity: opacity===undefined?1:opacity });
+    return new THREE.Line(geo, mat);
+  }
+  function tireAt(x, y, z, color){
+    var geo = new THREE.CylinderGeometry(tireRadius, tireRadius, 7, 24);
+    var mat = new THREE.MeshStandardMaterial({ color:color, roughness:0.9 });
+    var mesh = new THREE.Mesh(geo, mat);
+    mesh.position.set(x, y, z);
+    mesh.rotation.x = Math.PI/2;
+    return mesh;
+  }
+
+  var travelDeg = 0;
+  var frameRailY = 32; // matches the 2D 4-Link tool's frame-rail reference height
+  var staticRearAxleY = null, staticFrontAxleY = null;
+
+  function rebuildDynamic(){
+    dynamicGroup.clear();
+
+    var lowerColor = cssVar("--line-lower") || "#2f6f6b";
+    var upperColor = cssVar("--line-upper") || "#c8611f";
+    var accentColor = cssVar("--accent") || "#c8611f";
+    var inkColor = cssVar("--ink") || "#20242b";
+    var frameColor = cssVar("--line-frame") || "#3c4350";
+    var tireColor = "#22252a";
+
+    // ---- frame rails: fixed, run the wheelbase length, inboard of the tires ----
+    var railZ = Math.max(trackWidth/2 - 8, 6);
+    [-1,1].forEach(function(side){
+      var railGeo = new THREE.BoxGeometry(wheelbase + 24, 5, 4);
+      var railMat = new THREE.MeshStandardMaterial({ color:frameColor, roughness:0.6 });
+      var rail = new THREE.Mesh(railGeo, railMat);
+      rail.position.set(wheelbase/2, frameRailY, side*railZ);
+      dynamicGroup.add(rail);
+    });
+
+    // ---- rear axle: 4-Link's side-view linkage, mirrored to both sides ----
+    var m4 = K.solveFourBar(fourlink.Fl, fourlink.Al, fourlink.Fu, fourlink.Au, travelDeg);
+    var rearAxleY = (m4.Adriven.y + m4.Afollower.y)/2; // avg of Al/Au
+    var rearAxleX = (m4.Adriven.x + m4.Afollower.x)/2;
+    if(staticRearAxleY === null){
+      var m4static = K.solveFourBar(fourlink.Fl, fourlink.Al, fourlink.Fu, fourlink.Au, 0);
+      staticRearAxleY = (m4static.Adriven.y + m4static.Afollower.y)/2;
+    }
+
+    [-1,1].forEach(function(side){
+      var z = side * trackWidth/2;
+      var Fl3 = {x:fourlink.Fl.x, y:fourlink.Fl.y, z:z};
+      var Fu3 = {x:fourlink.Fu.x, y:fourlink.Fu.y, z:z};
+      var Al3 = {x:m4.Adriven.x, y:m4.Adriven.y, z:z};
+      var Au3 = {x:m4.Afollower.x, y:m4.Afollower.y, z:z};
+
+      dynamicGroup.add(rodBetween(Fl3, Al3, 0.7, lowerColor));
+      dynamicGroup.add(rodBetween(Fu3, Au3, 0.7, upperColor));
+      [Fl3,Fu3,Al3,Au3].forEach(function(p){ dynamicGroup.add(sphereAt(p, 1.1, inkColor)); });
+
+      if(document.getElementById("td3ShowIC").checked){
+        var IC = K.lineIntersect(Fu3, Au3, Fl3, Al3);
+        if(IC){
+          function extend(pA,pB,factor){ return { x:pA.x+(pB.x-pA.x)*factor, y:pA.y+(pB.y-pA.y)*factor, z:pA.z }; }
+          dynamicGroup.add(thinLine(Al3, extend(Fl3,Al3,2.4), lowerColor, 0.5));
+          dynamicGroup.add(thinLine(Au3, extend(Fu3,Au3,2.4), upperColor, 0.5));
+          dynamicGroup.add(sphereAt(IC, 1.3, accentColor));
+          var contact = { x:(Al3.x+Au3.x)/2, y:0, z:z };
+          dynamicGroup.add(thinLine(contact, extend(contact, IC, 1.35), accentColor, 0.7));
+        }
+      }
+    });
+
+    dynamicGroup.add(rodBetween(
+      {x:rearAxleX, y:rearAxleY, z:-trackWidth/2}, {x:rearAxleX, y:rearAxleY, z:trackWidth/2}, 2.4, inkColor
+    ));
+
+    // ---- front axle: Steering Geometry's track bar + drag link, placed at their real ----
+    // ---- left/right position directly (a track bar/drag link isn't a mirrored pair). ----
+    var mS = K.solveFourBar(steering.Tf, steering.Ta, steering.Df, steering.Da, travelDeg);
+    var Tf3 = {x:wheelbase, y:steering.Tf.y, z:steering.Tf.x};
+    var Df3 = {x:wheelbase, y:steering.Df.y, z:steering.Df.x};
+    var Ta3 = {x:wheelbase, y:mS.Adriven.y, z:mS.Adriven.x};
+    var Da3 = {x:wheelbase, y:mS.Afollower.y, z:mS.Afollower.x};
+    var frontAxleY = (Ta3.y + Da3.y)/2;
+    if(staticFrontAxleY === null){
+      var mSstatic = K.solveFourBar(steering.Tf, steering.Ta, steering.Df, steering.Da, 0);
+      staticFrontAxleY = (mSstatic.Adriven.y + mSstatic.Afollower.y)/2;
+    }
+
+    dynamicGroup.add(rodBetween(Tf3, Ta3, 0.7, lowerColor));
+    dynamicGroup.add(rodBetween(Df3, Da3, 0.7, upperColor));
+    [Tf3,Df3,Ta3,Da3].forEach(function(p){ dynamicGroup.add(sphereAt(p, 1.1, inkColor)); });
+
+    dynamicGroup.add(rodBetween(
+      {x:wheelbase, y:frontAxleY, z:-trackWidth/2}, {x:wheelbase, y:frontAxleY, z:trackWidth/2}, 2.4, inkColor
+    ));
+
+    // ---- tires: move with their axle's vertical travel, same "frame fixed" convention the 2D tools use ----
+    var rearDelta = rearAxleY - staticRearAxleY;
+    var frontDelta = frontAxleY - staticFrontAxleY;
+    [-1,1].forEach(function(side){
+      dynamicGroup.add(tireAt(0, tireRadius + rearDelta, side*trackWidth/2, tireColor));
+      dynamicGroup.add(tireAt(wheelbase, tireRadius + frontDelta, side*trackWidth/2, tireColor));
+    });
+
+    var stateLabel = travelDeg===0 ? "static ride height" : (travelDeg>0 ? "bump ("+travelDeg.toFixed(1)+"°)" : "droop ("+Math.abs(travelDeg).toFixed(1)+"°)");
+    document.getElementById("td3TravelState").textContent = travelDeg.toFixed(1)+"° · "+stateLabel;
+  }
+
+  // ---------- hand-rolled orbit controls (drag to rotate, wheel to zoom) ----------
+  var cam = { radius:220, theta:0.7, phi:1.05 };
+  var target = { x:70, y:14, z:0 };
+  var dragging = false, lastX = 0, lastY = 0;
+
+  function applyCamera(){
+    target.x = wheelbase/2;
+    camera.position.x = target.x + cam.radius*Math.sin(cam.phi)*Math.sin(cam.theta);
+    camera.position.y = target.y + cam.radius*Math.cos(cam.phi);
+    camera.position.z = target.z + cam.radius*Math.sin(cam.phi)*Math.cos(cam.theta);
+    camera.lookAt(target.x, target.y, target.z);
+  }
+
+  canvas.addEventListener("pointerdown", function(e){
+    dragging = true; lastX = e.clientX; lastY = e.clientY;
+    canvas.setPointerCapture(e.pointerId);
+  });
+  canvas.addEventListener("pointermove", function(e){
+    if(!dragging) return;
+    var dx = e.clientX - lastX, dy = e.clientY - lastY;
+    lastX = e.clientX; lastY = e.clientY;
+    cam.theta -= dx*0.007;
+    cam.phi -= dy*0.007;
+    cam.phi = Math.max(0.12, Math.min(Math.PI-0.12, cam.phi));
+  });
+  canvas.addEventListener("pointerup", function(){ dragging = false; });
+  canvas.addEventListener("pointercancel", function(){ dragging = false; });
+  canvas.addEventListener("wheel", function(e){
+    e.preventDefault();
+    cam.radius *= (1 + (e.deltaY>0 ? 0.1 : -0.1));
+    cam.radius = Math.max(50, Math.min(700, cam.radius));
+  }, { passive:false });
+
+  // ---------- resize ----------
+  function resizeRenderer(){
+    var wrap = canvas.parentElement;
+    var w = wrap.clientWidth || 600;
+    var h = canvas.clientHeight || 480;
+    renderer.setSize(w, h, false);
+    camera.aspect = w / (h || 1);
+    camera.updateProjectionMatrix();
+  }
+  window.addEventListener("resize", resizeRenderer);
+
+  // ---------- render loop (only runs while this view is visible) ----------
+  var loopRunning = false;
+  function loop(){
+    if(document.getElementById("view-3d").hidden){ loopRunning = false; return; }
+    applyCamera();
+    renderer.render(scene, camera);
+    requestAnimationFrame(loop);
+  }
+  function startLoop(){
+    if(loopRunning) return;
+    loopRunning = true;
+    requestAnimationFrame(loop);
+  }
+
+  document.getElementById("td3TravelSlider").addEventListener("input", function(e){
+    travelDeg = parseFloat(e.target.value);
+    rebuildDynamic();
+  });
+  document.getElementById("td3ShowIC").addEventListener("change", function(){
+    rebuildDynamic();
+  });
+
+  document.getElementById("view-3d").addEventListener("viewshown", function(){
+    refreshInputs();
+    staticRearAxleY = null;
+    staticFrontAxleY = null;
+    buildStaticScene();
+    rebuildDynamic();
+    resizeRenderer();
+    startLoop();
+  });
+
+  buildStaticScene();
+  rebuildDynamic();
 })();
 </script>
 </body>

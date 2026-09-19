@@ -1,8 +1,8 @@
 # Ride Bench
 
-Suspension design tools for the shop, built for the Li'l Or'nge build (1991.5 Dodge D250 Cummins on a 1975 D150 body). Currently: a shared Vehicle Profile, an interactive rear 4-link geometry tool, a spring/bag rate calculator, a front-end steering (bump steer) geometry tool, and a ride height log. More tools (a 3D interactive view) slot into the sidebar as they're built.
+Suspension design tools for the shop, built for the Li'l Or'nge build (1991.5 Dodge D250 Cummins on a 1975 D150 body). Currently: a shared Vehicle Profile, an interactive rear 4-link geometry tool, a spring/bag rate calculator, a front-end steering (bump steer) geometry tool, a ride height log, and a combined 3D chassis view.
 
-This is a single self-contained `index.html` file — no build step, no server, no dependencies to install. It runs entirely in your browser; nothing is uploaded anywhere, and the only "backend" is your browser's local storage, used to remember your last geometry on your own device.
+This is a single self-contained `index.html` file — no build step, no server, no dependencies to install locally. It runs entirely in your browser; nothing is uploaded anywhere, and the only "backend" is your browser's local storage, used to remember your last geometry on your own device. The one exception is the 3D Interactive View, which loads [Three.js](https://threejs.org/) r160 from a pinned cdnjs URL — see that tool's writeup below for details; everything else needs no network access at all once the page itself has loaded.
 
 ## Use it right now
 
@@ -97,10 +97,21 @@ The page has its own "What do these settings mean?" panel explaining why a consi
 
 **Limits:** it's a log, not a calculator — there's no cross-check against the other tools or unit conversion, just the simple front/rear split above. It's only as useful as the discipline of measuring the same way and logging consistently.
 
-### Coming next
-- **3D Interactive View** — a 3D look at the suspension geometry, beyond the current 2D side view.
+### 3D Interactive View
+A combined 3D visualization of the whole chassis — not a separate geometry tool with its own inputs, but a live rendering built entirely from data the other tools already saved: the rear axle linkage from **4-Link Geometry**, the front track bar/drag link from **Steering Geometry**, and wheelbase/track width/tire radius from **Vehicle Profile**. Drag to orbit, scroll to zoom, same feel as a basic CAD viewer.
 
-The sidebar's full roadmap order is Vehicle Profile → Getting Started → 4-Link Geometry → Spring & Bag Rate → Steering Geometry → Ride Height Log → 3D Interactive View.
+- **Rear axle** — 4-Link's side-view upper/lower link pivots, mirrored to both sides of the vehicle centerline at half the track width (a real 4-link rear normally has a symmetric link pair per side), joined by a single axle tube.
+- **Front axle** — Steering Geometry's track bar and drag link pivots placed at their actual left/right position directly, one wheelbase forward of the rear axle — not mirrored, since a track bar and drag link are a single asymmetric pair, not a left/right symmetric set like the 4-link.
+- **Shared travel slider** — drives both axles through the same bump/droop range at once, using the exact same four-bar linkage solve as the 2D tools (see the kinematics refactor below), which is something neither 2D tool can show by itself since they're separate pages.
+- **Instant-center toggle** — optionally overlays the rear axle's instant-center construction and extended link lines in 3D, off by default since it reads more clearly in the 2D tool's close-up side view.
+- **Missing-data fallback** — if 4-Link Geometry or Steering Geometry haven't been visited yet (no saved localStorage key), this view falls back to their documented default pivots and shows a small notice saying so, rather than erroring.
+
+This tool depends on [Three.js](https://threejs.org/) r160, loaded via a single pinned `<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/0.160.0/three.min.js">` tag — the only network dependency anywhere in the app. Orbit/zoom camera controls (drag-to-rotate, scroll-to-zoom) are hand-rolled rather than using Three's OrbitControls addon, since cdnjs doesn't carry a matching addons build for recent Three.js releases (newer Three.js releases dropped the classic global `three.min.js` build entirely in favor of ES modules, which is also why the version is pinned to r160 specifically rather than "latest").
+
+**Limits:** it's a visualization, not a new calculation — anti-squat and bump-steer numbers still live on their own 2D pages. Frame rail position/height, axle tube size, and tire width are simplified shapes, not real part dimensions, and — matching the 2D tools' own convention of a fixed frame with the axle moving relative to it — a tire can visually dip below or lift off the ground plane at extreme travel rather than the whole chassis rising and falling realistically.
+
+### Coming next
+Nothing currently planned — all six tools on the roadmap are built. The sidebar's full order is Vehicle Profile → Getting Started → 4-Link Geometry → Spring & Bag Rate → Steering Geometry → Ride Height Log → 3D Interactive View.
 
 ## How the tools relate
 
@@ -111,6 +122,7 @@ The sidebar's full roadmap order is Vehicle Profile → Getting Started → 4-Li
 - **CG height is a manual estimate** — unlike CG fore-aft (auto-calculated from corner weights), CG height has no simple scale trick and stays whatever you've entered in Vehicle Profile until you measure it some other way.
 - **Steering Geometry's own pivot geometry is independent** — its track bar/drag link pivot coordinates are a separate concern from the shared Vehicle Profile and live in their own `steering-geometry-v1` storage key, same as 4-Link Geometry's pivots do for the rear.
 - **Ride Height Log is intentionally disconnected from Vehicle Profile** — logged ride heights are a measured quantity that changes over time, not a design input the calculators need, so it keeps its own `rideheightlog-v1` storage key and doesn't read or write Vehicle Profile at all.
+- **The 3D Interactive View has no inputs of its own** — it reads 4-Link Geometry's and Steering Geometry's saved pivots (plus Vehicle Profile) directly, so editing pivots in either 2D tool is what changes the 3D chassis; there's nothing to edit on the 3D page itself.
 
 The in-app **Getting Started** view documents this in more detail, with first-time walkthroughs for each tool.
 
@@ -121,10 +133,13 @@ Everything lives in one `index.html` — markup, styles, and logic — so there'
 1. Add a `<section class="app" id="view-<name>" data-view-panel hidden>...</section>` inside `<main class="main">`, alongside `view-4link`.
 2. Add a `<button class="nav-item" data-view="view-<name>">...</button>` in the sidebar, and drop the `disabled`/`Soon` styling from its placeholder.
 3. Give the new tool's script its own IIFE (see the 4-link tool's `<script>` block for the pattern) so its variables don't collide with other tools' scripts.
-4. If the tool needs any of wheelbase, tire radius, track width, CG height, or corner weights, read them from `localStorage["vehicleProfile-v1"]` (see the small `loadVehicleProfile()` helper duplicated in the 4-Link, Spring & Bag Rate, and Steering Geometry scripts) rather than adding another copy of those fields — and re-read them on the section's `viewshown` event (dispatched by the nav-switcher whenever that view is shown) so the tool picks up edits made elsewhere in Vehicle Profile.
+4. If the tool needs any of wheelbase, tire radius, track width, CG height, or corner weights, read them from `localStorage["vehicleProfile-v1"]` (see the small `loadVehicleProfile()` helper duplicated in the 4-Link, Spring & Bag Rate, Steering Geometry, and 3D Interactive View scripts) rather than adding another copy of those fields — and re-read them on the section's `viewshown` event (dispatched by the nav-switcher whenever that view is shown) so the tool picks up edits made elsewhere in Vehicle Profile.
+5. If the tool needs to solve a four-bar linkage through suspension travel (a driven link rotating by some angle, with a second link's moving end solved from the rigid distance between the two moving ends), call `window.RideBenchKinematics.solveFourBar(...)` rather than re-deriving the circle-circle intersection math — see below.
 
-The 4-link tool's geometry math (four-bar linkage solve, anti-squat calculation), the spring rate tool's math (wheel rate, ride frequency, adiabatic air spring rate), and the steering tool's math (the same four-bar linkage solve, reused front-view, plus the bump steer arc comparison) each live in their own `<script>` block near the bottom of `index.html`, with comments marking each section. The steering tool's `circleIntersect`/`closerTo`/`dist`/`angleDeg` helpers are deliberately copied from the 4-Link script rather than shared, matching the existing convention of keeping each tool's script self-contained.
+**Shared kinematics module.** The four-bar linkage solve (`dist`, `lineIntersect`, `circleIntersect`, `closerTo`, and `solveFourBar`) used to be duplicated separately inside the 4-Link Geometry and Steering Geometry scripts. It's now one implementation, `window.RideBenchKinematics`, defined in its own small `<script>` block right after the nav-switcher (so it's available before any tool that needs it). `solveFourBar(Fdriven, Adriven0, Ffollower, Afollower0, dThetaDeg)` takes the driven link's frame/moving pivots, the follower link's frame/moving pivots, and a rotation in degrees, and returns the new moving-end positions plus an `ok` flag for when the requested travel puts the linkage out of reach. 4-Link Geometry, Steering Geometry, and the 3D Interactive View all call this same function — the rear axle's link solve, the front axle's track-bar/drag-link solve, and the 3D view's version of both are guaranteed to agree because they're the same code path, not three separate reimplementations.
+
+The 4-link tool's remaining math (anti-squat calculation), the spring rate tool's math (wheel rate, ride frequency, adiabatic air spring rate), and the steering tool's remaining math (the bump steer arc comparison) each live in their own `<script>` block near the bottom of `index.html`, with comments marking each section.
 
 ## Known limitations
 
-The 4-Link and Steering Geometry tools are both 2D approximations (side-view and front-view respectively), and the Spring & Bag Rate tool models a spring/bag in isolation (see each tool's writeup above for specifics). Treat every calculator here as a way to compare designs and sanity-check geometry before cutting metal, not a replacement for measuring or driving the real truck.
+The 4-Link, Steering Geometry, and 3D Interactive View tools are all simplified geometric approximations (2D side-view, 2D front-view, and a 3D combination of both, respectively), and the Spring & Bag Rate tool models a spring/bag in isolation (see each tool's writeup above for specifics). Treat every calculator here as a way to compare designs and sanity-check geometry before cutting metal, not a replacement for measuring or driving the real truck.
