@@ -1,0 +1,788 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Ride Bench</title>
+<meta name="description" content="Ride Bench — suspension design tools for the shop. Starts with rear 4-link geometry: drag pivots, run a travel slider, see anti-squat and instant center update live. Runs entirely in the browser, no server needed.">
+<style>
+:root{
+  color-scheme: light dark;
+  --bg:#f3ede2;
+  --surface:#ffffff;
+  --surface-2:#faf7f0;
+  --ink:#20242b;
+  --muted:#6b7280;
+  --accent:#c8611f;
+  --accent-ink:#ffffff;
+  --accent-2:#2f6f6b;
+  --grid:#d8cfba;
+  --good:#2f7d4f;
+  --warn:#a9761a;
+  --danger:#b23b3b;
+  --canvas-bg:#faf6ec;
+  --canvas-grid:#e2d9c4;
+  --line-frame:#3c4350;
+  --line-lower:#2f6f6b;
+  --line-upper:#c8611f;
+  --shadow:0 1px 2px rgba(20,16,8,.08),0 6px 20px rgba(20,16,8,.06);
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#14181d; --surface:#1b2129; --surface-2:#20262e; --ink:#e9e4d6; --muted:#8b93a1;
+    --accent:#e08334; --accent-ink:#1b1204; --accent-2:#57ada6; --grid:#2a323c;
+    --canvas-bg:#10141a; --canvas-grid:#212a33; --line-frame:#aab2c0; --line-lower:#57ada6; --line-upper:#e08334;
+    --good:#57b47c; --warn:#dcb15a; --danger:#e2766d;
+    --shadow:0 1px 2px rgba(0,0,0,.4),0 8px 24px rgba(0,0,0,.35);
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#14181d; --surface:#1b2129; --surface-2:#20262e; --ink:#e9e4d6; --muted:#8b93a1;
+  --accent:#e08334; --accent-ink:#1b1204; --accent-2:#57ada6; --grid:#2a323c;
+  --canvas-bg:#10141a; --canvas-grid:#212a33; --line-frame:#aab2c0; --line-lower:#57ada6; --line-upper:#e08334;
+  --good:#57b47c; --warn:#dcb15a; --danger:#e2766d;
+  --shadow:0 1px 2px rgba(0,0,0,.4),0 8px 24px rgba(0,0,0,.35);
+}
+
+@import url('https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800&family=Archivo+Expanded:wght@700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+
+*{box-sizing:border-box;}
+html,body{margin:0; height:100%;}
+body{
+  background:var(--bg);
+  color:var(--ink);
+  font-family:'Archivo',system-ui,sans-serif;
+  padding-inline:0;
+  padding-block:0;
+  display:flex;
+  justify-content:center;
+}
+[hidden]{display:none!important;}
+img{max-width:100%;}
+
+.shell{ width:100%; max-width:1440px; display:flex; min-height:100vh; }
+
+.sidebar{
+  width:216px; flex:none; background:var(--surface); border-right:1px solid var(--grid);
+  padding:18px 14px; display:flex; flex-direction:column; gap:18px;
+}
+.brand{ display:flex; flex-direction:column; gap:1px; padding:0 4px; }
+.brand .mark{
+  font-family:'Archivo Expanded',sans-serif; font-weight:800; font-size:1.15rem; letter-spacing:.01em;
+  display:flex; align-items:center; gap:8px;
+}
+.brand .mark .dot{ width:9px; height:9px; border-radius:50%; background:var(--accent); flex:none; }
+.brand .tag{ font-size:.68rem; color:var(--muted); }
+
+.nav-group{ display:flex; flex-direction:column; gap:2px; }
+.nav-group .group-label{
+  font-size:.62rem; font-weight:700; letter-spacing:.09em; text-transform:uppercase;
+  color:var(--muted); padding:0 10px; margin-bottom:4px;
+}
+.nav-item{
+  display:flex; align-items:center; justify-content:space-between; gap:8px;
+  padding:8px 10px; border-radius:4px; font-size:.82rem; font-weight:600; color:var(--ink);
+  cursor:pointer; border:1px solid transparent; background:none; text-align:left; width:100%;
+  font-family:'Archivo',sans-serif;
+}
+.nav-item:hover{ background:var(--surface-2); }
+.nav-item.active{ background:var(--accent); color:var(--accent-ink); }
+.nav-item.disabled{ color:var(--muted); cursor:default; }
+.nav-item.disabled:hover{ background:none; }
+.nav-item .soon{
+  font-size:.6rem; font-weight:700; letter-spacing:.04em; text-transform:uppercase;
+  color:var(--muted); border:1px solid var(--grid); border-radius:3px; padding:1px 5px; flex:none;
+}
+.nav-item.active .soon{ display:none; }
+
+.main{ flex:1; min-width:0; padding:20px 20px 40px; }
+.app{ width:100%; max-width:1000px; display:flex; flex-direction:column; gap:16px; }
+
+@media (max-width:760px){
+  .shell{ flex-direction:column; }
+  .sidebar{ width:100%; flex-direction:row; flex-wrap:wrap; align-items:center; border-right:none; border-bottom:1px solid var(--grid); }
+  .nav-group{ flex-direction:row; flex-wrap:wrap; }
+  .main{ padding:16px 16px 32px; }
+}
+
+header.top{
+  display:flex; flex-wrap:wrap; align-items:baseline; justify-content:space-between;
+  gap:8px 20px; border-bottom:2px solid var(--ink); padding-bottom:12px;
+}
+.title-block h1{
+  font-family:'Archivo Expanded',sans-serif; font-weight:800;
+  font-size:clamp(1.35rem,1rem + 1.5vw,1.9rem); letter-spacing:.01em; margin:0; text-wrap:balance;
+}
+.title-block .sub{ color:var(--muted); font-size:.82rem; margin-top:2px; }
+.top-actions{ display:flex; gap:8px; flex-wrap:wrap; }
+button.chip{
+  font-family:'Archivo',sans-serif; font-weight:600; font-size:.72rem; letter-spacing:.04em; text-transform:uppercase;
+  border:1.5px solid var(--ink); background:var(--surface); color:var(--ink); padding:7px 12px; border-radius:3px;
+  cursor:pointer; transition:transform .08s ease, background .15s ease;
+}
+button.chip:hover{background:var(--surface-2);}
+button.chip:active{transform:translateY(1px);}
+button.chip.primary{ background:var(--accent); border-color:var(--accent); color:var(--accent-ink); }
+button.chip:focus-visible{ outline:2px solid var(--accent-2); outline-offset:2px; }
+
+.layout{ display:grid; grid-template-columns:minmax(0,1.55fr) minmax(260px,1fr); gap:16px; align-items:start; }
+@media (max-width:860px){ .layout{grid-template-columns:1fr;} }
+
+.panel{ background:var(--surface); border:1px solid var(--grid); border-radius:6px; box-shadow:var(--shadow); padding:14px 14px 16px; }
+.panel h2{
+  font-family:'Archivo',sans-serif; font-size:.68rem; font-weight:700; letter-spacing:.09em; text-transform:uppercase;
+  color:var(--muted); margin:0 0 10px;
+}
+
+.canvas-wrap{ background:var(--canvas-bg); border:1px solid var(--grid); border-radius:4px; overflow:hidden; position:relative; }
+svg#diagram{ display:block; width:100%; height:auto; touch-action:none; }
+.legend{ display:flex; flex-wrap:wrap; gap:12px 18px; padding:10px 4px 2px; font-size:.72rem; color:var(--muted); }
+.legend span{display:inline-flex;align-items:center;gap:6px;}
+.legend i{width:16px;height:3px;border-radius:2px;display:inline-block;}
+
+.travel-row{ margin-top:12px; display:flex; flex-direction:column; gap:6px; }
+.travel-row .labels{ display:flex; justify-content:space-between; font-size:.72rem; color:var(--muted); font-weight:600; }
+.travel-row .labels .state{ font-family:'JetBrains Mono',monospace; color:var(--ink); font-weight:600; }
+input[type="range"]{
+  -webkit-appearance:none; width:100%; height:6px; border-radius:4px;
+  background:linear-gradient(90deg,var(--line-lower),var(--grid) 50%,var(--line-upper)); outline:none;
+}
+input[type="range"]::-webkit-slider-thumb{
+  -webkit-appearance:none; width:18px;height:18px; border-radius:50%; background:var(--accent);
+  border:2px solid var(--surface); box-shadow:0 0 0 1.5px var(--ink); cursor:pointer; margin-top:0;
+}
+input[type="range"]::-moz-range-thumb{
+  width:18px;height:18px; border-radius:50%; background:var(--accent); border:2px solid var(--surface);
+  box-shadow:0 0 0 1.5px var(--ink); cursor:pointer;
+}
+
+.readout-grid{ display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:14px; }
+.stat{ background:var(--surface-2); border:1px solid var(--grid); border-radius:4px; padding:9px 10px; }
+.stat .k{ font-size:.64rem; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:var(--muted); }
+.stat .v{
+  font-family:'JetBrains Mono',monospace; font-size:1.15rem; font-weight:600; font-variant-numeric:tabular-nums;
+  margin-top:2px; display:flex; align-items:baseline; gap:4px;
+}
+.stat .v .unit{ font-size:.68rem; color:var(--muted); font-weight:500; }
+.stat.wide{grid-column:1/-1;}
+.stat.flag-good .v{color:var(--good);}
+.stat.flag-warn .v{color:var(--warn);}
+.stat.flag-bad .v{color:var(--danger);}
+
+.field-group{ display:flex; flex-direction:column; gap:10px; }
+.field{ display:grid; grid-template-columns:1fr auto; align-items:center; gap:8px 10px; }
+.field label{ font-size:.76rem; font-weight:600; color:var(--ink); }
+.field .hint{ grid-column:1/-1; font-size:.68rem; color:var(--muted); margin-top:-4px; }
+.field input[type="number"]{
+  width:76px; font-family:'JetBrains Mono',monospace; font-size:.82rem; font-weight:600;
+  background:var(--surface-2); border:1px solid var(--grid); color:var(--ink); border-radius:3px; padding:5px 6px; text-align:right;
+}
+.field input[type="number"]:focus-visible{ outline:2px solid var(--accent-2); outline-offset:1px; }
+
+.notes{ font-size:.76rem; line-height:1.6; color:var(--muted); }
+.notes strong{color:var(--ink);}
+.notes dl{margin:0;}
+.notes dt{ color:var(--ink); font-weight:700; margin-top:10px; }
+.notes dt:first-child{margin-top:0;}
+.notes dd{ margin:2px 0 0; }
+
+.pin-label{ font-family:'JetBrains Mono',monospace; font-size:9px; fill:var(--muted); }
+
+details.help{ border:1px solid var(--grid); border-radius:4px; background:var(--surface-2); }
+details.help summary{
+  cursor:pointer; padding:10px 12px; font-weight:700; font-size:.78rem; list-style:none;
+  display:flex; align-items:center; justify-content:space-between;
+}
+details.help summary::-webkit-details-marker{display:none;}
+details.help summary::after{content:"+"; color:var(--accent); font-size:1.1rem; font-weight:800;}
+details.help[open] summary::after{content:"–";}
+details.help .notes{ padding:0 12px 12px; }
+
+footer.credit{ text-align:center; font-size:.68rem; color:var(--muted); padding-top:4px; }
+footer.credit a{ color:var(--accent-2); }
+</style>
+</head>
+<body>
+<div class="shell">
+  <nav class="sidebar" aria-label="Ride Bench tools">
+    <div class="brand">
+      <div class="mark"><span class="dot"></span>Ride Bench</div>
+      <div class="tag">Suspension design tools</div>
+    </div>
+    <div class="nav-group">
+      <div class="group-label">Suspension</div>
+      <button class="nav-item active" data-view="view-4link" type="button">4-Link Geometry</button>
+      <button class="nav-item disabled" type="button" disabled>Spring &amp; Bag Rate <span class="soon">Soon</span></button>
+      <button class="nav-item disabled" type="button" disabled>Steering Geometry <span class="soon">Soon</span></button>
+      <button class="nav-item disabled" type="button" disabled>Ride Height Log <span class="soon">Soon</span></button>
+    </div>
+  </nav>
+
+  <main class="main">
+  <section class="app" id="view-4link" data-view-panel>
+  <header class="top">
+    <div class="title-block">
+      <h1>Rear 4-Link Geometry</h1>
+      <div class="sub">Side-view kinematics for Li'l Or'nge — drag the pivots, run the travel slider, watch anti-squat move.</div>
+    </div>
+    <div class="top-actions">
+      <button class="chip" id="btnTheme" type="button" title="Cycle theme">Theme: System</button>
+      <button class="chip" id="btnReset" type="button">Reset geometry</button>
+      <button class="chip primary" id="btnSave" type="button">Save to browser</button>
+    </div>
+  </header>
+
+  <div class="layout">
+    <div class="panel">
+      <h2>Side view · drag any pivot</h2>
+      <div class="canvas-wrap">
+        <svg id="diagram" viewBox="0 0 860 440" xmlns="http://www.w3.org/2000/svg"></svg>
+      </div>
+      <div class="legend">
+        <span><i style="background:var(--line-frame)"></i>Frame rail</span>
+        <span><i style="background:var(--line-lower)"></i>Lower link</span>
+        <span><i style="background:var(--line-upper)"></i>Upper link</span>
+        <span><i style="background:var(--accent)"></i>Instant center line</span>
+        <span><i style="background:var(--ink);opacity:.5"></i>CG reference</span>
+      </div>
+      <div class="travel-row">
+        <div class="labels">
+          <span>Droop</span>
+          <span class="state" id="travelState">0.0° · static ride height</span>
+          <span>Bump</span>
+        </div>
+        <input type="range" id="travelSlider" min="-20" max="20" value="0" step="0.5" />
+      </div>
+    </div>
+
+    <div class="side-col" style="display:flex;flex-direction:column;gap:16px;">
+      <div class="panel">
+        <h2>Live geometry</h2>
+        <div class="readout-grid">
+          <div class="stat" id="statAS">
+            <div class="k">Anti-squat</div>
+            <div class="v"><span id="vAS">–</span><span class="unit">%</span></div>
+          </div>
+          <div class="stat">
+            <div class="k">Instant center</div>
+            <div class="v" style="font-size:.92rem"><span id="vIC">–</span></div>
+          </div>
+          <div class="stat">
+            <div class="k">Lower link angle</div>
+            <div class="v"><span id="vLowerAng">–</span><span class="unit">°</span></div>
+          </div>
+          <div class="stat">
+            <div class="k">Upper link angle</div>
+            <div class="v"><span id="vUpperAng">–</span><span class="unit">°</span></div>
+          </div>
+          <div class="stat">
+            <div class="k">Lower link length</div>
+            <div class="v"><span id="vLowerLen">–</span><span class="unit">in</span></div>
+          </div>
+          <div class="stat">
+            <div class="k">Upper link length</div>
+            <div class="v"><span id="vUpperLen">–</span><span class="unit">in</span></div>
+          </div>
+          <div class="stat wide">
+            <div class="k">Pinion angle change vs. static</div>
+            <div class="v"><span id="vPinion">–</span><span class="unit">°</span></div>
+          </div>
+        </div>
+        <div class="notes" id="mechanismNote"></div>
+      </div>
+
+      <div class="panel">
+        <h2>Vehicle reference</h2>
+        <div class="field-group">
+          <div class="field">
+            <label for="inWheelbase">Wheelbase</label>
+            <input type="number" id="inWheelbase" value="140" step="1" />
+          </div>
+          <div class="field">
+            <label for="inCgX">CG, forward of rear axle</label>
+            <input type="number" id="inCgX" value="70" step="1" />
+          </div>
+          <div class="field">
+            <label for="inCgY">CG height above ground</label>
+            <input type="number" id="inCgY" value="24" step="0.5" />
+          </div>
+          <div class="field">
+            <label for="inTire">Loaded tire radius</label>
+            <input type="number" id="inTire" value="16.5" step="0.25" />
+          </div>
+          <div class="hint">All dimensions in inches. CG values are estimates — corner-weigh and measure when you have real numbers.</div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h2>Pivot coordinates</h2>
+        <div class="field-group" id="pivotFields"></div>
+        <div class="hint" style="margin-top:2px">Origin is the rear axle centerline at ride height, ground level. Drag pivots on the diagram or type exact values here.</div>
+      </div>
+
+      <div class="panel">
+        <details class="help" open>
+          <summary>What do these settings mean?</summary>
+          <div class="notes">
+            <dl>
+              <dt>Fu / Au — the upper link</dt>
+              <dd><strong>Fu</strong> is where the upper link bolts to the frame. <strong>Au</strong> is where that same link bolts to the axle. The line between them is the upper link. On most trucks this link is shorter and steeper than the lower one — that steep angle is a big part of what generates anti-squat.</dd>
+
+              <dt>Fl / Al — the lower link</dt>
+              <dd><strong>Fl</strong> is the lower link's frame-side mount, <strong>Al</strong> its axle-side mount. This link is usually longer and closer to flat, and it does most of the work of locating the axle fore-aft under acceleration and braking.</dd>
+
+              <dt>Instant center (IC)</dt>
+              <dd>Extend the upper link's line and the lower link's line until they cross — that crossing point is the instant center. It's a purely geometric construction (not a physical part) that tells you, for an instant, how the axle "wants" to move. Move the pivots and the IC moves with them.</dd>
+
+              <dt>Anti-squat %</dt>
+              <dd>Draw a line from the rear tire's contact patch through the instant center, and see how high that line is by the time it reaches the truck's center of gravity (CG). Compare that height to the actual CG height — that ratio, as a percent, is anti-squat. <strong>100%</strong> means the rear geometry fully cancels the weight transfer that squats the rear under acceleration. Under 100% still squats some; well over 100% starts to jack the rear up instead of just resisting squat. For a street cruiser, most builders aim roughly 60–110%.</dd>
+
+              <dt>Travel slider (droop / bump)</dt>
+              <dd>This doesn't just redraw a picture — it re-solves the actual linkage. Compression (bump) and extension (droop) are entered as degrees of lower-link rotation. The tool then works out where the upper pivot has to land so both links stay their real, fixed length — the same constraint the physical links are under. Watch how anti-squat and the instant center shift as the suspension moves; a design that looks good sitting still can change a lot at ride height extremes.</dd>
+
+              <dt>Pinion angle change</dt>
+              <dd>As the linkage moves through travel, the axle housing rotates. This shows how many degrees the axle (and therefore the pinion/driveshaft angle) has rotated relative to its position at static ride height — useful for checking you won't be fighting driveshaft vibration at either end of travel.</dd>
+
+              <dt>Wheelbase / CG position / CG height / tire radius</dt>
+              <dd>These describe the truck itself, not the linkage. CG height and its fore-aft position are the two hardest numbers to get exactly right without scales — treat the defaults as placeholders and correct them once you've corner-weighed the truck.</dd>
+            </dl>
+          </div>
+        </details>
+      </div>
+
+      <div class="panel">
+        <div class="notes">
+          <strong>Limits of this model:</strong> this is a 2D side-view approximation. It ignores lateral link angles (roll steer, side-loading), bushing compliance, and how anti-squat interacts with anti-lift under braking. Treat it as a way to compare link layouts and sanity-check geometry before you cut brackets — not a replacement for measuring the real truck.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <footer class="credit">
+    Runs entirely in your browser — nothing is sent anywhere, and your geometry is saved locally via the Save button.
+  </footer>
+  </section>
+  </main>
+</div>
+
+<script>
+(function(){
+  "use strict";
+  document.querySelectorAll(".nav-item[data-view]").forEach(function(btn){
+    btn.addEventListener("click", function(){
+      document.querySelectorAll(".nav-item[data-view]").forEach(function(b){ b.classList.remove("active"); });
+      document.querySelectorAll("[data-view-panel]").forEach(function(p){ p.hidden = true; });
+      btn.classList.add("active");
+      var target = document.getElementById(btn.dataset.view);
+      if(target) target.hidden = false;
+    });
+  });
+})();
+</script>
+<script>
+(function(){
+  "use strict";
+
+  // ---------- persistence ----------
+  var STORAGE_KEY = "fourlink-geometry-v1";
+
+  var defaults = {
+    Fu:{x:26, y:27},   // frame pivot, upper link
+    Au:{x:-2, y:22},   // axle pivot, upper link
+    Fl:{x:34, y:13},   // frame pivot, lower link
+    Al:{x:0,  y:11},   // axle pivot, lower link
+    wheelbase:140,
+    cgX:70,
+    cgY:24,
+    tire:16.5,
+    theme:"system"
+  };
+
+  function loadState(){
+    try{
+      var raw = localStorage.getItem(STORAGE_KEY);
+      if(!raw) return JSON.parse(JSON.stringify(defaults));
+      var parsed = JSON.parse(raw);
+      var merged = JSON.parse(JSON.stringify(defaults));
+      for(var k in merged){ if(parsed[k]!==undefined) merged[k]=parsed[k]; }
+      return merged;
+    }catch(e){ return JSON.parse(JSON.stringify(defaults)); }
+  }
+  function saveState(){
+    try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }catch(e){ /* private mode / blocked storage */ }
+  }
+
+  var state = loadState();
+
+  // ---------- theme ----------
+  var themeOrder = ["system","light","dark"];
+  function applyTheme(){
+    if(state.theme==="system"){ document.documentElement.removeAttribute("data-theme"); }
+    else{ document.documentElement.setAttribute("data-theme", state.theme); }
+    document.getElementById("btnTheme").textContent = "Theme: " + state.theme.charAt(0).toUpperCase()+state.theme.slice(1);
+  }
+  document.getElementById("btnTheme").addEventListener("click", function(){
+    var idx = themeOrder.indexOf(state.theme);
+    state.theme = themeOrder[(idx+1)%themeOrder.length];
+    applyTheme(); saveState();
+  });
+  applyTheme();
+
+  // ---------- geometry helpers ----------
+  function dist(a,b){ return Math.hypot(a.x-b.x, a.y-b.y); }
+  function angleDeg(a,b){ return Math.atan2(b.y-a.y, b.x-a.x)*180/Math.PI; }
+
+  function lineIntersect(p1,p2,p3,p4){
+    var x1=p1.x,y1=p1.y,x2=p2.x,y2=p2.y,x3=p3.x,y3=p3.y,x4=p4.x,y4=p4.y;
+    var denom = (x1-x2)*(y3-y4) - (y1-y2)*(x3-x4);
+    if(Math.abs(denom) < 1e-9) return null;
+    var t = ((x1-x3)*(y3-y4) - (y1-y3)*(x3-x4)) / denom;
+    return { x: x1 + t*(x2-x1), y: y1 + t*(y2-y1) };
+  }
+
+  function circleIntersect(c1,r1,c2,r2){
+    var d = dist(c1,c2);
+    if(d > r1+r2 + 1e-6 || d < Math.abs(r1-r2) - 1e-6 || d < 1e-9) return [];
+    var a = (r1*r1 - r2*r2 + d*d) / (2*d);
+    var hh = Math.max(0, r1*r1 - a*a);
+    var h = Math.sqrt(hh);
+    var xm = c1.x + a*(c2.x-c1.x)/d;
+    var ym = c1.y + a*(c2.y-c1.y)/d;
+    var xs1 = xm + h*(c2.y-c1.y)/d;
+    var ys1 = ym - h*(c2.x-c1.x)/d;
+    var xs2 = xm - h*(c2.y-c1.y)/d;
+    var ys2 = ym + h*(c2.x-c1.x)/d;
+    return [{x:xs1,y:ys1},{x:xs2,y:ys2}];
+  }
+
+  function closerTo(pts, ref){
+    if(pts.length===0) return null;
+    if(pts.length===1) return pts[0];
+    return dist(pts[0],ref) <= dist(pts[1],ref) ? pts[0] : pts[1];
+  }
+
+  // ---------- coordinate mapping (world inches, y-up) <-> svg pixels ----------
+  var PX = 4.4;
+  var ORIGIN_X = 190;
+  var GROUND_Y = 372;
+
+  function toSvg(p){ return { x: ORIGIN_X + p.x*PX, y: GROUND_Y - p.y*PX }; }
+  function toWorld(p){ return { x: (p.x-ORIGIN_X)/PX, y: (GROUND_Y-p.y)/PX }; }
+
+  function computeAtTravel(dThetaDeg){
+    var Fu=state.Fu, Fl=state.Fl;
+    var Lu = dist(Fu, state.Au);
+    var Ll = dist(Fl, state.Al);
+    var D  = dist(state.Au, state.Al);
+
+    var theta_l0 = Math.atan2(state.Al.y-Fl.y, state.Al.x-Fl.x);
+    var theta_l = theta_l0 + dThetaDeg*Math.PI/180;
+    var Al = { x: Fl.x + Ll*Math.cos(theta_l), y: Fl.y + Ll*Math.sin(theta_l) };
+
+    var candidates = circleIntersect(Fu, Lu, Al, D);
+    var Au = closerTo(candidates, state.Au);
+    var mechanismOk = !!Au;
+    if(!Au) Au = state.Au;
+
+    return { Fu:Fu, Fl:Fl, Au:Au, Al:Al, Lu:Lu, Ll:Ll, D:D, ok:mechanismOk };
+  }
+
+  function computeAntiSquat(m){
+    var IC = lineIntersect(m.Fu, m.Au, m.Fl, m.Al);
+    var contactX = (m.Au.x + m.Al.x)/2;
+    var contact = { x: contactX, y: 0 };
+    var asPct = null, icLabel = "parallel links (IC at infinity)";
+    if(IC){
+      icLabel = IC.x.toFixed(1) + "\", " + IC.y.toFixed(1) + "\"";
+      var dx = IC.x - contact.x;
+      if(Math.abs(dx) > 1e-6){
+        var slope = (IC.y - contact.y) / dx;
+        var heightAtCg = slope * (state.cgX - contact.x);
+        asPct = 100 * heightAtCg / state.cgY;
+      }
+    }
+    return { IC:IC, contact:contact, asPct:asPct, icLabel:icLabel };
+  }
+
+  // ---------- SVG scene ----------
+  var svg = document.getElementById("diagram");
+  var NS = "http://www.w3.org/2000/svg";
+  function el(tag, attrs){
+    var e = document.createElementNS(NS, tag);
+    for(var k in attrs) e.setAttribute(k, attrs[k]);
+    return e;
+  }
+
+  var layerStatic = el("g",{});
+  var layerDynamic = el("g",{});
+  svg.appendChild(layerStatic);
+  svg.appendChild(layerDynamic);
+
+  function buildStaticLayer(){
+    layerStatic.innerHTML = "";
+    var grid = el("g",{});
+    for(var gx=-40; gx<=180; gx+=10){
+      var p = toSvg({x:gx,y:0});
+      grid.appendChild(el("line",{x1:p.x,y1:GROUND_Y+14,x2:p.x,y2:60,stroke:"var(--canvas-grid)","stroke-width":1}));
+    }
+    for(var gy=0; gy<=50; gy+=10){
+      var q = toSvg({x:-40,y:gy}), q2=toSvg({x:190,y:gy});
+      grid.appendChild(el("line",{x1:q.x,y1:q.y,x2:q2.x,y2:q2.y,stroke:"var(--canvas-grid)","stroke-width":1}));
+    }
+    layerStatic.appendChild(grid);
+
+    var g1 = toSvg({x:-40,y:0}), g2 = toSvg({x:190,y:0});
+    layerStatic.appendChild(el("line",{x1:g1.x,y1:g1.y,x2:g2.x,y2:g2.y,stroke:"var(--ink)","stroke-width":2}));
+    var groundLabel = el("text",{x:g2.x-4,y:g2.y+16,"text-anchor":"end",class:"pin-label"});
+    groundLabel.textContent = "ground";
+    layerStatic.appendChild(groundLabel);
+
+    var fr1 = toSvg({x:-25, y:32}), fr2 = toSvg({x:165,y:32});
+    layerStatic.appendChild(el("line",{x1:fr1.x,y1:fr1.y,x2:fr2.x,y2:fr2.y,stroke:"var(--line-frame)","stroke-width":5,"stroke-linecap":"round",opacity:.85}));
+  }
+
+  var tireEl, axleBodyEl;
+
+  function makeDynamicSkeleton(){
+    layerDynamic.innerHTML = "";
+
+    tireEl = el("circle",{r: state.tire*PX, fill:"none", stroke:"var(--muted)", "stroke-width":2, "stroke-dasharray":"3 4", opacity:.55});
+    layerDynamic.appendChild(tireEl);
+
+    axleBodyEl = el("line",{stroke:"var(--ink)","stroke-width":6,"stroke-linecap":"round",opacity:.9});
+    layerDynamic.appendChild(axleBodyEl);
+
+    window.lowerLinkEl = el("line",{stroke:"var(--line-lower)","stroke-width":4,"stroke-linecap":"round"});
+    window.upperLinkEl = el("line",{stroke:"var(--line-upper)","stroke-width":4,"stroke-linecap":"round"});
+    layerDynamic.appendChild(window.lowerLinkEl);
+    layerDynamic.appendChild(window.upperLinkEl);
+
+    window.lowerExtEl = el("line",{stroke:"var(--line-lower)","stroke-width":1.3,"stroke-dasharray":"5 5",opacity:.55});
+    window.upperExtEl = el("line",{stroke:"var(--line-upper)","stroke-width":1.3,"stroke-dasharray":"5 5",opacity:.55});
+    layerDynamic.appendChild(window.lowerExtEl);
+    layerDynamic.appendChild(window.upperExtEl);
+
+    window.icLineEl = el("line",{stroke:"var(--accent)","stroke-width":1.6,"stroke-dasharray":"2 5",opacity:.8});
+    layerDynamic.appendChild(window.icLineEl);
+
+    window.cgDot = el("circle",{r:6, fill:"var(--surface)", stroke:"var(--ink)","stroke-width":2});
+    window.cgLabel = el("text",{class:"pin-label","text-anchor":"middle"});
+    window.cgLabel.textContent = "CG";
+    layerDynamic.appendChild(window.cgDot);
+    layerDynamic.appendChild(window.cgLabel);
+
+    window.icDot = el("circle",{r:5.5, fill:"var(--accent)", stroke:"var(--surface)","stroke-width":1.5});
+    window.icLabelEl = el("text",{class:"pin-label","font-weight":"700",fill:"var(--accent)"});
+    window.icLabelEl.textContent = "IC";
+    layerDynamic.appendChild(window.icDot);
+    layerDynamic.appendChild(window.icLabelEl);
+
+    window.contactDot = el("circle",{r:4, fill:"var(--ink)"});
+    layerDynamic.appendChild(window.contactDot);
+
+    window.pivotEls = {};
+    var pivotMeta = [
+      {key:"Fu", color:"var(--line-upper)", label:"Fu"},
+      {key:"Au", color:"var(--line-upper)", label:"Au"},
+      {key:"Fl", color:"var(--line-lower)", label:"Fl"},
+      {key:"Al", color:"var(--line-lower)", label:"Al"}
+    ];
+    pivotMeta.forEach(function(meta){
+      var c = el("circle",{r:8, fill:meta.color, stroke:"var(--surface)","stroke-width":2, style:"cursor:grab"});
+      c.dataset.key = meta.key;
+      var lbl = el("text",{class:"pin-label", "text-anchor":"middle", fill:"var(--ink)","font-weight":"700"});
+      lbl.textContent = meta.label;
+      layerDynamic.appendChild(c);
+      layerDynamic.appendChild(lbl);
+      window.pivotEls[meta.key] = { circle:c, label:lbl };
+      attachDrag(c, meta.key);
+    });
+  }
+
+  function attachDrag(node, key){
+    node.addEventListener("pointerdown", function(ev){
+      node.setPointerCapture(ev.pointerId);
+      node.style.cursor = "grabbing";
+      function move(mv){
+        var pt = svg.createSVGPoint();
+        pt.x = mv.clientX; pt.y = mv.clientY;
+        var ctm = svg.getScreenCTM();
+        if(!ctm) return;
+        var loc = pt.matrixTransform(ctm.inverse());
+        var w = toWorld(loc);
+        w.y = Math.max(0, w.y);
+        state[key] = { x: Math.round(w.x*10)/10, y: Math.round(w.y*10)/10 };
+        render();
+      }
+      function up(){
+        node.style.cursor = "grab";
+        window.removeEventListener("pointermove", move);
+        window.removeEventListener("pointerup", up);
+        saveState();
+        renderPivotFields();
+      }
+      window.addEventListener("pointermove", move);
+      window.addEventListener("pointerup", up);
+    });
+  }
+
+  var travelDeg = 0;
+
+  function render(){
+    var m = computeAtTravel(travelDeg);
+    var as = computeAntiSquat(m);
+
+    var contactSvg = toSvg({x:(m.Au.x+m.Al.x)/2, y:0});
+    var axleCenterWorld = { x:(m.Au.x+m.Al.x)/2, y: state.tire };
+    var axleCenterSvg = toSvg(axleCenterWorld);
+    tireEl.setAttribute("cx", axleCenterSvg.x);
+    tireEl.setAttribute("cy", axleCenterSvg.y);
+
+    var auSvg = toSvg(m.Au), alSvg = toSvg(m.Al), fuSvg = toSvg(m.Fu), flSvg = toSvg(m.Fl);
+    axleBodyEl.setAttribute("x1", auSvg.x); axleBodyEl.setAttribute("y1", auSvg.y);
+    axleBodyEl.setAttribute("x2", alSvg.x); axleBodyEl.setAttribute("y2", alSvg.y);
+
+    window.lowerLinkEl.setAttribute("x1", flSvg.x); window.lowerLinkEl.setAttribute("y1", flSvg.y);
+    window.lowerLinkEl.setAttribute("x2", alSvg.x); window.lowerLinkEl.setAttribute("y2", alSvg.y);
+    window.upperLinkEl.setAttribute("x1", fuSvg.x); window.upperLinkEl.setAttribute("y1", fuSvg.y);
+    window.upperLinkEl.setAttribute("x2", auSvg.x); window.upperLinkEl.setAttribute("y2", auSvg.y);
+
+    function extend(pA,pB,factor){ return { x: pA.x + (pB.x-pA.x)*factor, y: pA.y + (pB.y-pA.y)*factor }; }
+    var lowerExtWorld = extend(m.Fl, m.Al, 2.4);
+    var upperExtWorld = extend(m.Fu, m.Au, 2.4);
+    var lowerExtSvg = toSvg(lowerExtWorld), upperExtSvg = toSvg(upperExtWorld);
+    window.lowerExtEl.setAttribute("x1", alSvg.x); window.lowerExtEl.setAttribute("y1", alSvg.y);
+    window.lowerExtEl.setAttribute("x2", lowerExtSvg.x); window.lowerExtEl.setAttribute("y2", lowerExtSvg.y);
+    window.upperExtEl.setAttribute("x1", auSvg.x); window.upperExtEl.setAttribute("y1", auSvg.y);
+    window.upperExtEl.setAttribute("x2", upperExtSvg.x); window.upperExtEl.setAttribute("y2", upperExtSvg.y);
+
+    var cgSvg = toSvg({x:state.cgX, y:state.cgY});
+    window.cgDot.setAttribute("cx", cgSvg.x); window.cgDot.setAttribute("cy", cgSvg.y);
+    window.cgLabel.setAttribute("x", cgSvg.x); window.cgLabel.setAttribute("y", cgSvg.y-12);
+
+    window.contactDot.setAttribute("cx", contactSvg.x); window.contactDot.setAttribute("cy", contactSvg.y);
+
+    if(as.IC){
+      var icSvg = toSvg(as.IC);
+      window.icDot.style.display = ""; window.icLabelEl.style.display = ""; window.icLineEl.style.display = "";
+      window.icDot.setAttribute("cx", icSvg.x); window.icDot.setAttribute("cy", icSvg.y);
+      window.icLabelEl.setAttribute("x", icSvg.x); window.icLabelEl.setAttribute("y", icSvg.y-10);
+      var beyond = extend(contactSvg, icSvg, 1.35);
+      window.icLineEl.setAttribute("x1", contactSvg.x); window.icLineEl.setAttribute("y1", contactSvg.y);
+      window.icLineEl.setAttribute("x2", beyond.x); window.icLineEl.setAttribute("y2", beyond.y);
+    } else {
+      window.icDot.style.display = "none"; window.icLabelEl.style.display = "none"; window.icLineEl.style.display = "none";
+    }
+
+    ["Fu","Au","Fl","Al"].forEach(function(key){
+      var p = toSvg(m[key] || state[key]);
+      window.pivotEls[key].circle.setAttribute("cx", p.x);
+      window.pivotEls[key].circle.setAttribute("cy", p.y);
+      window.pivotEls[key].label.setAttribute("x", p.x);
+      window.pivotEls[key].label.setAttribute("y", p.y - 13);
+    });
+
+    document.getElementById("vAS").textContent = as.asPct===null ? "n/a" : as.asPct.toFixed(0);
+    document.getElementById("vIC").textContent = as.icLabel;
+    document.getElementById("vLowerAng").textContent = angleDeg(m.Fl, m.Al).toFixed(1);
+    document.getElementById("vUpperAng").textContent = angleDeg(m.Fu, m.Au).toFixed(1);
+    document.getElementById("vLowerLen").textContent = m.Ll.toFixed(1);
+    document.getElementById("vUpperLen").textContent = m.Lu.toFixed(1);
+
+    var staticM = computeAtTravel(0);
+    var axleAngleNow = Math.atan2(m.Au.y-m.Al.y, m.Au.x-m.Al.x)*180/Math.PI;
+    var axleAngleStatic = Math.atan2(staticM.Au.y-staticM.Al.y, staticM.Au.x-staticM.Al.x)*180/Math.PI;
+    document.getElementById("vPinion").textContent = (axleAngleNow-axleAngleStatic>=0?"+":"") + (axleAngleNow-axleAngleStatic).toFixed(1);
+
+    var statAS = document.getElementById("statAS");
+    statAS.className = "stat";
+    if(as.asPct!==null){
+      if(as.asPct>=60 && as.asPct<=110) statAS.classList.add("flag-good");
+      else if(as.asPct>110 && as.asPct<=150) statAS.classList.add("flag-warn");
+      else if(as.asPct>150 || as.asPct<0) statAS.classList.add("flag-bad");
+    }
+
+    var stateLabel = travelDeg===0 ? "static ride height" : (travelDeg>0 ? "bump ("+travelDeg.toFixed(1)+"°)" : "droop ("+Math.abs(travelDeg).toFixed(1)+"°)");
+    document.getElementById("travelState").textContent = travelDeg.toFixed(1)+"° · "+stateLabel;
+
+    var note = document.getElementById("mechanismNote");
+    note.innerHTML = m.ok ? "" : "<strong>Mechanism can't reach this travel</strong> — the link lengths don't allow this lower-link angle. Showing the last valid position; reduce travel or adjust link geometry.";
+  }
+
+  function bindNumberInput(id, key){
+    var input = document.getElementById(id);
+    input.value = state[key];
+    input.addEventListener("input", function(){
+      var v = parseFloat(input.value);
+      if(!isNaN(v)){ state[key]=v; render(); }
+    });
+    input.addEventListener("change", saveState);
+  }
+  bindNumberInput("inWheelbase","wheelbase");
+  bindNumberInput("inCgX","cgX");
+  bindNumberInput("inCgY","cgY");
+  bindNumberInput("inTire","tire");
+
+  function renderPivotFields(){
+    var wrap = document.getElementById("pivotFields");
+    var labels = {Fu:"Upper link, frame end",Au:"Upper link, axle end",Fl:"Lower link, frame end",Al:"Lower link, axle end"};
+    wrap.innerHTML = "";
+    ["Fu","Au","Fl","Al"].forEach(function(key){
+      var row = document.createElement("div");
+      row.className = "field";
+      row.innerHTML =
+        '<label>'+labels[key]+'</label>'+
+        '<span style="display:flex;gap:6px;">'+
+          '<input type="number" step="0.5" data-key="'+key+'" data-axis="x" value="'+state[key].x+'" style="width:56px" aria-label="'+labels[key]+' x">'+
+          '<input type="number" step="0.5" data-key="'+key+'" data-axis="y" value="'+state[key].y+'" style="width:56px" aria-label="'+labels[key]+' y">'+
+        '</span>';
+      wrap.appendChild(row);
+    });
+    wrap.querySelectorAll("input").forEach(function(inp){
+      inp.addEventListener("input", function(){
+        var key = inp.dataset.key, axis = inp.dataset.axis;
+        var v = parseFloat(inp.value);
+        if(!isNaN(v)){ state[key][axis] = v; render(); }
+      });
+      inp.addEventListener("change", saveState);
+    });
+  }
+
+  document.getElementById("travelSlider").addEventListener("input", function(e){
+    travelDeg = parseFloat(e.target.value);
+    render();
+  });
+
+  document.getElementById("btnReset").addEventListener("click", function(){
+    var d = JSON.parse(JSON.stringify(defaults));
+    d.theme = state.theme;
+    state = d;
+    document.getElementById("travelSlider").value = 0;
+    travelDeg = 0;
+    document.getElementById("inWheelbase").value = state.wheelbase;
+    document.getElementById("inCgX").value = state.cgX;
+    document.getElementById("inCgY").value = state.cgY;
+    document.getElementById("inTire").value = state.tire;
+    renderPivotFields();
+    render();
+    saveState();
+  });
+
+  document.getElementById("btnSave").addEventListener("click", function(){
+    saveState();
+    var btn = document.getElementById("btnSave");
+    var old = btn.textContent;
+    btn.textContent = "Saved ✓";
+    setTimeout(function(){ btn.textContent = old; }, 1200);
+  });
+
+  buildStaticLayer();
+  makeDynamicSkeleton();
+  renderPivotFields();
+  render();
+})();
+</script>
+</body>
+</html>
