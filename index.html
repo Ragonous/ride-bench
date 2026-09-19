@@ -220,20 +220,118 @@ footer.credit a{ color:var(--accent-2); }
     </div>
     <div class="nav-group">
       <div class="group-label">Suspension</div>
+      <button class="nav-item" data-view="view-vehicle-profile" type="button">Vehicle Profile</button>
       <button class="nav-item active" data-view="view-getting-started" type="button">Getting Started</button>
       <button class="nav-item" data-view="view-4link" type="button">4-Link Geometry</button>
       <button class="nav-item" data-view="view-springrate" type="button">Spring &amp; Bag Rate</button>
       <button class="nav-item disabled" type="button" disabled>Steering Geometry <span class="soon">Soon</span></button>
       <button class="nav-item disabled" type="button" disabled>Ride Height Log <span class="soon">Soon</span></button>
+      <button class="nav-item disabled" type="button" disabled>3D Interactive View <span class="soon">Soon</span></button>
     </div>
   </nav>
 
   <main class="main">
+  <section class="app" id="view-vehicle-profile" data-view-panel hidden>
+  <header class="top">
+    <div class="title-block">
+      <h1>Vehicle Profile</h1>
+      <div class="sub">One shared set of truck numbers — 4-Link Geometry and Spring &amp; Bag Rate both read from this instead of keeping their own copies.</div>
+    </div>
+    <div class="top-actions">
+      <button class="chip" id="vpBtnReset" type="button">Reset</button>
+      <button class="chip primary" id="vpBtnSave" type="button">Save to browser</button>
+    </div>
+  </header>
+
+  <div class="layout">
+    <div class="panel">
+      <h2>Truck dimensions</h2>
+      <div class="field-group">
+        <div class="field">
+          <label for="vpWheelbase">Wheelbase</label>
+          <input type="number" id="vpWheelbase" step="1" />
+        </div>
+        <div class="field">
+          <label for="vpTireRadius">Loaded tire radius</label>
+          <input type="number" id="vpTireRadius" step="0.25" />
+        </div>
+        <div class="field">
+          <label for="vpCgHeight">CG height above ground</label>
+          <input type="number" id="vpCgHeight" step="0.5" />
+          <div class="hint">Inches. There's no simple scale method for CG height — get it off a tilt table if you can, otherwise this stays an estimate.</div>
+        </div>
+        <div class="hint">All dimensions in inches.</div>
+      </div>
+    </div>
+
+    <div class="side-col" style="display:flex;flex-direction:column;gap:16px;">
+      <div class="panel">
+        <h2>Corner weights</h2>
+        <div class="field-group">
+          <div class="field">
+            <label for="vpWtFL">Front left</label>
+            <input type="number" id="vpWtFL" step="5" />
+          </div>
+          <div class="field">
+            <label for="vpWtFR">Front right</label>
+            <input type="number" id="vpWtFR" step="5" />
+          </div>
+          <div class="field">
+            <label for="vpWtRL">Rear left</label>
+            <input type="number" id="vpWtRL" step="5" />
+          </div>
+          <div class="field">
+            <label for="vpWtRR">Rear right</label>
+            <input type="number" id="vpWtRR" step="5" />
+          </div>
+          <div class="hint">Corner weights in lb, from scales if you have them.</div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h2>Computed</h2>
+        <div class="readout-grid">
+          <div class="stat wide">
+            <div class="k">CG, forward of rear axle</div>
+            <div class="v"><span id="vpVCgForeAft">–</span><span class="unit">in</span></div>
+          </div>
+        </div>
+        <div class="hint" style="margin-top:-6px">Auto-calculated from corner weights and wheelbase: <strong>CG fore-aft = (front total ÷ total weight) × wheelbase</strong>. Not editable directly — change a corner weight or the wheelbase to move it.</div>
+      </div>
+
+      <div class="panel">
+        <details class="help" open>
+          <summary>What do these settings mean?</summary>
+          <div class="notes">
+            <dl>
+              <dt>Wheelbase / loaded tire radius</dt>
+              <dd>Basic truck dimensions, in inches. Feed both the 4-Link tool's anti-squat geometry and (for tire radius) its diagram.</dd>
+
+              <dt>CG height above ground</dt>
+              <dd>The hardest number here to get right without real equipment — there's no simple scale trick for it the way there is for corner weight. A tilt-table measurement is the accurate way; short of that, treat this as an estimate and revisit it once you can measure it.</dd>
+
+              <dt>Corner weights</dt>
+              <dd>Static weight at each of the four corners, in lb, ideally from scales. Feeds Spring &amp; Bag Rate's wheel-rate and ride-frequency math directly, and also drives the CG fore-aft calculation below.</dd>
+
+              <dt>CG, forward of rear axle (computed)</dt>
+              <dd>Unlike CG height, this one doesn't need a separate manual measurement — it falls out of the corner weights you already entered: heavier front corners relative to the total shift the CG forward, and the wheelbase sets the scale. That's exactly what <strong>(front total ÷ total weight) × wheelbase</strong> computes. This feeds 4-Link Geometry's anti-squat calculation.</dd>
+            </dl>
+          </div>
+        </details>
+      </div>
+    </div>
+  </div>
+
+  <footer class="credit">
+    Runs entirely in your browser — nothing is sent anywhere, and these numbers are saved locally via the Save button, shared by both tools.
+  </footer>
+  </section>
+
   <section class="app" id="view-getting-started" data-view-panel>
   <header class="top">
     <div class="title-block">
       <h1>Getting Started</h1>
-      <div class="sub">Ride Bench has two independent tools right now — this page explains how to use each one and where their numbers need to agree even though the app doesn't check that for you.</div>
+      <div class="sub">Ride Bench's suspension tools share one Vehicle Profile for truck-level numbers (corner weights, CG, wheelbase, tire radius) — this page explains how to use each tool and where numbers can still drift apart even so.</div>
     </div>
   </header>
 
@@ -242,11 +340,11 @@ footer.credit a{ color:var(--accent-2); }
     <div class="notes">
       <ul>
         <li>Corner weights — all four corners (front left, front right, rear left, rear right)</li>
-        <li>CG height and CG fore-aft position</li>
+        <li>CG height</li>
         <li>Loaded tire radius</li>
         <li>Wheelbase</li>
       </ul>
-      Neither tool shares these numbers with the other — 4-Link Geometry and Spring &amp; Bag Rate each store their own independent copies. Getting real measurements up front, before you start typing numbers into either tool, is what keeps both tools consistent with each other.
+      Enter these once in <strong>Vehicle Profile</strong> — both 4-Link Geometry and Spring &amp; Bag Rate read them live from there, so there's only one place to keep up to date. CG fore-aft position isn't in that list because it's calculated automatically from corner weights and wheelbase, not measured directly.
     </div>
   </div>
 
@@ -254,7 +352,7 @@ footer.credit a{ color:var(--accent-2); }
     <h2>4-Link Geometry — first-time walkthrough</h2>
     <div class="notes">
       <ol>
-        <li>Set Wheelbase, CG position, CG height, and tire radius in <strong>Vehicle Reference</strong> first — the anti-squat math depends on these.</li>
+        <li>Set Wheelbase, CG height, and tire radius in <strong>Vehicle Profile</strong> first — the anti-squat math depends on these (CG fore-aft comes along automatically from corner weights).</li>
         <li>Place the four pivots (<strong>Fu/Au</strong> for the upper link, <strong>Fl/Al</strong> for the lower link) to match real or planned bracket locations.</li>
         <li>Read <strong>Anti-Squat %</strong> at travel = 0 as your baseline number.</li>
         <li>Run the travel slider through bump and droop and watch anti-squat, the instant center, and pinion angle change shift — geometry that looks good at rest can look very different at the extremes of travel.</li>
@@ -267,7 +365,7 @@ footer.credit a{ color:var(--accent-2); }
     <div class="notes">
       <ol>
         <li>Pick <strong>Coil spring</strong> or <strong>Air spring (bag)</strong> mode.</li>
-        <li>Enter that corner's real weight and select it as the <strong>"Corner being calculated."</strong></li>
+        <li>Make sure that corner's real weight is entered in <strong>Vehicle Profile</strong>, then select it as the <strong>"Corner being calculated"</strong> here.</li>
         <li>Fill in the spring/bag fields for that mode.</li>
         <li>Read <strong>Wheel Rate</strong> first — it accounts for motion ratio, unlike the raw spring rate.</li>
         <li>Read <strong>Ride Frequency</strong> last — it's the number that best predicts actual ride feel. Rear is usually tuned a bit above front.</li>
@@ -280,14 +378,14 @@ footer.credit a{ color:var(--accent-2); }
       <summary>Where this can quietly go wrong</summary>
       <div class="notes">
         <dl>
-          <dt>Corner weight and CG position aren't linked</dt>
-          <dd>The corner weight you enter in Spring &amp; Bag Rate isn't connected to the CG position you enter in 4-Link Geometry. If you change one — say, after a corner-weigh or after adding weight to the truck — sanity-check the other by hand.</dd>
-
           <dt>Motion ratio is stored separately per mode</dt>
           <dd>Motion ratio is kept as two separate values on the same corner — one for coil mode, one for air mode. If you switch modes on a corner, recheck that the motion ratio for the new mode is still correct; it won't carry over from the other mode.</dd>
 
           <dt>Air spring rate depends on pressure</dt>
           <dd>An air spring's rate is pressure-dependent, so a wheel rate calculated at one pressure doesn't hold once you change ride height by changing pressure. Recalculate after any pressure adjustment.</dd>
+
+          <dt>CG height is still a manual estimate</dt>
+          <dd>Corner weights and CG fore-aft position are solid once you've scaled the truck, but CG height has no easy scale trick — it stays whatever estimate you typed into Vehicle Profile until you measure it some other way (tilt table, etc.). Anti-squat is sensitive to this number, so revisit it if you get a real measurement.</dd>
         </dl>
       </div>
     </details>
@@ -296,6 +394,7 @@ footer.credit a{ color:var(--accent-2); }
   <div class="panel">
     <h2>Jump into a tool</h2>
     <div class="top-actions">
+      <button class="chip primary nav-item" data-view="view-vehicle-profile" type="button" style="width:auto;">Go to Vehicle Profile</button>
       <button class="chip primary nav-item" data-view="view-4link" type="button" style="width:auto;">Go to 4-Link Geometry</button>
       <button class="chip primary nav-item" data-view="view-springrate" type="button" style="width:auto;">Go to Spring &amp; Bag Rate</button>
     </div>
@@ -318,6 +417,10 @@ footer.credit a{ color:var(--accent-2); }
       <button class="chip primary" id="btnSave" type="button">Save to browser</button>
     </div>
   </header>
+
+  <div class="notes">
+    Using: <span id="vlProfileText">–</span> — <a href="#" id="vlProfileLink" style="color:var(--accent-2);font-weight:600;">edit in Vehicle Profile</a>
+  </div>
 
   <div class="layout">
     <div class="panel">
@@ -379,29 +482,6 @@ footer.credit a{ color:var(--accent-2); }
       </div>
 
       <div class="panel">
-        <h2>Vehicle reference</h2>
-        <div class="field-group">
-          <div class="field">
-            <label for="inWheelbase">Wheelbase</label>
-            <input type="number" id="inWheelbase" value="140" step="1" />
-          </div>
-          <div class="field">
-            <label for="inCgX">CG, forward of rear axle</label>
-            <input type="number" id="inCgX" value="70" step="1" />
-          </div>
-          <div class="field">
-            <label for="inCgY">CG height above ground</label>
-            <input type="number" id="inCgY" value="24" step="0.5" />
-          </div>
-          <div class="field">
-            <label for="inTire">Loaded tire radius</label>
-            <input type="number" id="inTire" value="16.5" step="0.25" />
-          </div>
-          <div class="hint">All dimensions in inches. CG values are estimates — corner-weigh and measure when you have real numbers.</div>
-        </div>
-      </div>
-
-      <div class="panel">
         <h2>Pivot coordinates</h2>
         <div class="field-group" id="pivotFields"></div>
         <div class="hint" style="margin-top:2px">Origin is the rear axle centerline at ride height, ground level. Drag pivots on the diagram or type exact values here.</div>
@@ -431,7 +511,7 @@ footer.credit a{ color:var(--accent-2); }
               <dd>As the linkage moves through travel, the axle housing rotates. This shows how many degrees the axle (and therefore the pinion/driveshaft angle) has rotated relative to its position at static ride height — useful for checking you won't be fighting driveshaft vibration at either end of travel.</dd>
 
               <dt>Wheelbase / CG position / CG height / tire radius</dt>
-              <dd>These describe the truck itself, not the linkage. CG height and its fore-aft position are the two hardest numbers to get exactly right without scales — treat the defaults as placeholders and correct them once you've corner-weighed the truck.</dd>
+              <dd>These describe the truck itself, not the linkage, and now live in the shared <strong>Vehicle Profile</strong> view rather than here — this page just reads them (see the "Using:" line above). CG fore-aft is calculated automatically from corner weights; CG height is the one number here that's still a manual estimate until you can measure it some other way.</dd>
             </dl>
           </div>
         </details>
@@ -461,6 +541,10 @@ footer.credit a{ color:var(--accent-2); }
       <button class="chip primary" id="srBtnSave" type="button">Save to browser</button>
     </div>
   </header>
+
+  <div class="notes">
+    Using: <span id="srProfileText">–</span> — <a href="#" id="srProfileLink" style="color:var(--accent-2);font-weight:600;">edit in Vehicle Profile</a>
+  </div>
 
   <div class="layout">
     <div class="panel">
@@ -530,7 +614,7 @@ footer.credit a{ color:var(--accent-2); }
 
     <div class="side-col" style="display:flex;flex-direction:column;gap:16px;">
       <div class="panel">
-        <h2>Corner weights</h2>
+        <h2>Corner</h2>
         <div class="field-group">
           <div class="field">
             <label for="srCornerActive">Corner being calculated</label>
@@ -541,23 +625,7 @@ footer.credit a{ color:var(--accent-2); }
               <option value="RR">Rear right</option>
             </select>
           </div>
-          <div class="field">
-            <label for="srWtFL">Front left</label>
-            <input type="number" id="srWtFL" step="5" />
-          </div>
-          <div class="field">
-            <label for="srWtFR">Front right</label>
-            <input type="number" id="srWtFR" step="5" />
-          </div>
-          <div class="field">
-            <label for="srWtRL">Rear left</label>
-            <input type="number" id="srWtRL" step="5" />
-          </div>
-          <div class="field">
-            <label for="srWtRR">Rear right</label>
-            <input type="number" id="srWtRR" step="5" />
-          </div>
-          <div class="hint">Corner weights in lb, from scales if you have them. The "corner being calculated" selector picks which one feeds the numbers below.</div>
+          <div class="hint">Weight for the selected corner is pulled live from Vehicle Profile — edit it there, not here.</div>
         </div>
       </div>
 
@@ -640,9 +708,137 @@ footer.credit a{ color:var(--accent-2); }
       document.querySelectorAll("[data-view-panel]").forEach(function(p){ p.hidden = true; });
       btn.classList.add("active");
       var target = document.getElementById(btn.dataset.view);
-      if(target) target.hidden = false;
+      if(target){
+        target.hidden = false;
+        target.dispatchEvent(new CustomEvent("viewshown"));
+      }
     });
   });
+})();
+</script>
+<script>
+(function(){
+  "use strict";
+
+  // ---------- persistence ----------
+  // Shared truck-level numbers used by both 4-Link Geometry and Spring & Bag Rate.
+  // This script runs first (before the other two tools' scripts) so any one-time
+  // migration from their old, separate storage keys happens before they read this key.
+  var STORAGE_KEY = "vehicleProfile-v1";
+  var OLD_4LINK_KEY = "fourlink-geometry-v1";
+  var OLD_SPRING_KEY = "springrate-v1";
+
+  var defaults = {
+    wheelbase: 140,
+    tireRadius: 16.5,
+    cgHeight: 24,
+    cornerWeights: { FL:750, FR:750, RL:900, RR:900 }
+  };
+
+  function migrateFromOldKeys(){
+    var profile = JSON.parse(JSON.stringify(defaults));
+    var found = false;
+    try{
+      var oldFour = localStorage.getItem(OLD_4LINK_KEY);
+      if(oldFour){
+        var f = JSON.parse(oldFour);
+        if(typeof f.wheelbase === "number"){ profile.wheelbase = f.wheelbase; found = true; }
+        if(typeof f.tire === "number"){ profile.tireRadius = f.tire; found = true; }
+        if(typeof f.cgY === "number"){ profile.cgHeight = f.cgY; found = true; }
+        // f.cgX (the old tool's manual fore-aft entry) is intentionally not migrated —
+        // CG fore-aft is now always auto-calculated from corner weights, so there's no
+        // single field to drop it into.
+      }
+    }catch(e){ /* ignore malformed old data */ }
+    try{
+      var oldSpring = localStorage.getItem(OLD_SPRING_KEY);
+      if(oldSpring){
+        var s = JSON.parse(oldSpring);
+        if(s.weights){
+          ["FL","FR","RL","RR"].forEach(function(k){
+            if(typeof s.weights[k] === "number"){ profile.cornerWeights[k] = s.weights[k]; found = true; }
+          });
+        }
+      }
+    }catch(e){ /* ignore malformed old data */ }
+    return found ? profile : null;
+  }
+
+  function loadState(){
+    try{
+      var raw = localStorage.getItem(STORAGE_KEY);
+      if(raw){
+        var parsed = JSON.parse(raw);
+        var merged = JSON.parse(JSON.stringify(defaults));
+        if(typeof parsed.wheelbase === "number") merged.wheelbase = parsed.wheelbase;
+        if(typeof parsed.tireRadius === "number") merged.tireRadius = parsed.tireRadius;
+        if(typeof parsed.cgHeight === "number") merged.cgHeight = parsed.cgHeight;
+        if(parsed.cornerWeights){
+          ["FL","FR","RL","RR"].forEach(function(k){ if(typeof parsed.cornerWeights[k] === "number") merged.cornerWeights[k] = parsed.cornerWeights[k]; });
+        }
+        return merged;
+      }
+      var migrated = migrateFromOldKeys();
+      return migrated || JSON.parse(JSON.stringify(defaults));
+    }catch(e){ return JSON.parse(JSON.stringify(defaults)); }
+  }
+  function saveState(){
+    try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }catch(e){ /* private mode / blocked storage */ }
+  }
+
+  var state = loadState();
+  saveState(); // persist a migrated/default profile immediately so it's the one source of truth from here on
+
+  function cgForeAft(){
+    var w = state.cornerWeights;
+    var total = w.FL + w.FR + w.RL + w.RR;
+    if(total <= 0) return 0;
+    return ((w.FL + w.FR) / total) * state.wheelbase;
+  }
+
+  function render(){
+    document.getElementById("vpVCgForeAft").textContent = cgForeAft().toFixed(1);
+  }
+
+  function bindNumber(id, obj, key){
+    var input = document.getElementById(id);
+    input.value = obj[key];
+    input.addEventListener("input", function(){
+      var v = parseFloat(input.value);
+      if(!isNaN(v)){ obj[key] = v; render(); }
+    });
+    input.addEventListener("change", saveState);
+  }
+  bindNumber("vpWheelbase", state, "wheelbase");
+  bindNumber("vpTireRadius", state, "tireRadius");
+  bindNumber("vpCgHeight", state, "cgHeight");
+  bindNumber("vpWtFL", state.cornerWeights, "FL");
+  bindNumber("vpWtFR", state.cornerWeights, "FR");
+  bindNumber("vpWtRL", state.cornerWeights, "RL");
+  bindNumber("vpWtRR", state.cornerWeights, "RR");
+
+  document.getElementById("vpBtnReset").addEventListener("click", function(){
+    state = JSON.parse(JSON.stringify(defaults));
+    document.getElementById("vpWheelbase").value = state.wheelbase;
+    document.getElementById("vpTireRadius").value = state.tireRadius;
+    document.getElementById("vpCgHeight").value = state.cgHeight;
+    document.getElementById("vpWtFL").value = state.cornerWeights.FL;
+    document.getElementById("vpWtFR").value = state.cornerWeights.FR;
+    document.getElementById("vpWtRL").value = state.cornerWeights.RL;
+    document.getElementById("vpWtRR").value = state.cornerWeights.RR;
+    render();
+    saveState();
+  });
+
+  document.getElementById("vpBtnSave").addEventListener("click", function(){
+    saveState();
+    var btn = document.getElementById("vpBtnSave");
+    var old = btn.textContent;
+    btn.textContent = "Saved ✓";
+    setTimeout(function(){ btn.textContent = old; }, 1200);
+  });
+
+  render();
 })();
 </script>
 <script>
@@ -657,10 +853,6 @@ footer.credit a{ color:var(--accent-2); }
     Au:{x:-2, y:22},   // axle pivot, upper link
     Fl:{x:34, y:13},   // frame pivot, lower link
     Al:{x:0,  y:11},   // axle pivot, lower link
-    wheelbase:140,
-    cgX:70,
-    cgY:24,
-    tire:16.5,
     theme:"system"
   };
 
@@ -679,6 +871,50 @@ footer.credit a{ color:var(--accent-2); }
   }
 
   var state = loadState();
+
+  // ---------- shared vehicle profile (wheelbase, CG, tire radius, corner weights) ----------
+  // Owned by the Vehicle Profile view/script; read-only from here.
+  var VP_KEY = "vehicleProfile-v1";
+  var vpDefaults = { wheelbase:140, tireRadius:16.5, cgHeight:24, cornerWeights:{FL:750,FR:750,RL:900,RR:900} };
+  function loadVehicleProfile(){
+    try{
+      var raw = localStorage.getItem(VP_KEY);
+      if(!raw) return JSON.parse(JSON.stringify(vpDefaults));
+      var parsed = JSON.parse(raw);
+      var merged = JSON.parse(JSON.stringify(vpDefaults));
+      if(typeof parsed.wheelbase === "number") merged.wheelbase = parsed.wheelbase;
+      if(typeof parsed.tireRadius === "number") merged.tireRadius = parsed.tireRadius;
+      if(typeof parsed.cgHeight === "number") merged.cgHeight = parsed.cgHeight;
+      if(parsed.cornerWeights){
+        ["FL","FR","RL","RR"].forEach(function(k){ if(typeof parsed.cornerWeights[k] === "number") merged.cornerWeights[k] = parsed.cornerWeights[k]; });
+      }
+      return merged;
+    }catch(e){ return JSON.parse(JSON.stringify(vpDefaults)); }
+  }
+  function vpCgForeAft(vp){
+    var w = vp.cornerWeights;
+    var total = w.FL + w.FR + w.RL + w.RR;
+    if(total <= 0) return 0;
+    return ((w.FL + w.FR) / total) * vp.wheelbase;
+  }
+
+  var vehicleProfile = loadVehicleProfile();
+
+  function updateProfileSummary(){
+    var cgFA = vpCgForeAft(vehicleProfile);
+    document.getElementById("vlProfileText").textContent =
+      'wheelbase ' + vehicleProfile.wheelbase + '", CG ' + cgFA.toFixed(0) + '" fwd of rear axle / ' + vehicleProfile.cgHeight + '" high, tire radius ' + vehicleProfile.tireRadius + '"';
+  }
+  document.getElementById("vlProfileLink").addEventListener("click", function(ev){
+    ev.preventDefault();
+    var navBtn = document.querySelector('.nav-item[data-view="view-vehicle-profile"]');
+    if(navBtn) navBtn.click();
+  });
+  document.getElementById("view-4link").addEventListener("viewshown", function(){
+    vehicleProfile = loadVehicleProfile();
+    updateProfileSummary();
+    render();
+  });
 
   // ---------- theme ----------
   var themeOrder = ["system","light","dark"];
@@ -763,8 +999,8 @@ footer.credit a{ color:var(--accent-2); }
       var dx = IC.x - contact.x;
       if(Math.abs(dx) > 1e-6){
         var slope = (IC.y - contact.y) / dx;
-        var heightAtCg = slope * (state.cgX - contact.x);
-        asPct = 100 * heightAtCg / state.cgY;
+        var heightAtCg = slope * (vpCgForeAft(vehicleProfile) - contact.x);
+        asPct = 100 * heightAtCg / vehicleProfile.cgHeight;
       }
     }
     return { IC:IC, contact:contact, asPct:asPct, icLabel:icLabel };
@@ -812,7 +1048,7 @@ footer.credit a{ color:var(--accent-2); }
   function makeDynamicSkeleton(){
     layerDynamic.innerHTML = "";
 
-    tireEl = el("circle",{r: state.tire*PX, fill:"none", stroke:"var(--muted)", "stroke-width":2, "stroke-dasharray":"3 4", opacity:.55});
+    tireEl = el("circle",{r: vehicleProfile.tireRadius*PX, fill:"none", stroke:"var(--muted)", "stroke-width":2, "stroke-dasharray":"3 4", opacity:.55});
     layerDynamic.appendChild(tireEl);
 
     axleBodyEl = el("line",{stroke:"var(--ink)","stroke-width":6,"stroke-linecap":"round",opacity:.9});
@@ -899,8 +1135,9 @@ footer.credit a{ color:var(--accent-2); }
     var as = computeAntiSquat(m);
 
     var contactSvg = toSvg({x:(m.Au.x+m.Al.x)/2, y:0});
-    var axleCenterWorld = { x:(m.Au.x+m.Al.x)/2, y: state.tire };
+    var axleCenterWorld = { x:(m.Au.x+m.Al.x)/2, y: vehicleProfile.tireRadius };
     var axleCenterSvg = toSvg(axleCenterWorld);
+    tireEl.setAttribute("r", vehicleProfile.tireRadius*PX);
     tireEl.setAttribute("cx", axleCenterSvg.x);
     tireEl.setAttribute("cy", axleCenterSvg.y);
 
@@ -922,7 +1159,7 @@ footer.credit a{ color:var(--accent-2); }
     window.upperExtEl.setAttribute("x1", auSvg.x); window.upperExtEl.setAttribute("y1", auSvg.y);
     window.upperExtEl.setAttribute("x2", upperExtSvg.x); window.upperExtEl.setAttribute("y2", upperExtSvg.y);
 
-    var cgSvg = toSvg({x:state.cgX, y:state.cgY});
+    var cgSvg = toSvg({x:vpCgForeAft(vehicleProfile), y:vehicleProfile.cgHeight});
     window.cgDot.setAttribute("cx", cgSvg.x); window.cgDot.setAttribute("cy", cgSvg.y);
     window.cgLabel.setAttribute("x", cgSvg.x); window.cgLabel.setAttribute("y", cgSvg.y-12);
 
@@ -975,20 +1212,6 @@ footer.credit a{ color:var(--accent-2); }
     note.innerHTML = m.ok ? "" : "<strong>Mechanism can't reach this travel</strong> — the link lengths don't allow this lower-link angle. Showing the last valid position; reduce travel or adjust link geometry.";
   }
 
-  function bindNumberInput(id, key){
-    var input = document.getElementById(id);
-    input.value = state[key];
-    input.addEventListener("input", function(){
-      var v = parseFloat(input.value);
-      if(!isNaN(v)){ state[key]=v; render(); }
-    });
-    input.addEventListener("change", saveState);
-  }
-  bindNumberInput("inWheelbase","wheelbase");
-  bindNumberInput("inCgX","cgX");
-  bindNumberInput("inCgY","cgY");
-  bindNumberInput("inTire","tire");
-
   function renderPivotFields(){
     var wrap = document.getElementById("pivotFields");
     var labels = {Fu:"Upper link, frame end",Au:"Upper link, axle end",Fl:"Lower link, frame end",Al:"Lower link, axle end"};
@@ -1025,10 +1248,6 @@ footer.credit a{ color:var(--accent-2); }
     state = d;
     document.getElementById("travelSlider").value = 0;
     travelDeg = 0;
-    document.getElementById("inWheelbase").value = state.wheelbase;
-    document.getElementById("inCgX").value = state.cgX;
-    document.getElementById("inCgY").value = state.cgY;
-    document.getElementById("inTire").value = state.tire;
     renderPivotFields();
     render();
     saveState();
@@ -1042,6 +1261,7 @@ footer.credit a{ color:var(--accent-2); }
     setTimeout(function(){ btn.textContent = old; }, 1200);
   });
 
+  updateProfileSummary();
   buildStaticLayer();
   makeDynamicSkeleton();
   renderPivotFields();
@@ -1058,7 +1278,6 @@ footer.credit a{ color:var(--accent-2); }
   var defaults = {
     mode: "coil",
     corner: "FL",
-    weights: { FL:750, FR:750, RL:900, RR:900 },
     coil: { rate:180, freeLen:14, mr:0.75 },
     air: { preset:"custom", pressure:80, area:14, volume:220, mr:0.75 }
   };
@@ -1094,6 +1313,43 @@ footer.credit a{ color:var(--accent-2); }
   }
 
   var state = loadState();
+
+  // ---------- shared vehicle profile (wheelbase, CG, tire radius, corner weights) ----------
+  // Owned by the Vehicle Profile view/script; read-only from here.
+  var VP_KEY = "vehicleProfile-v1";
+  var vpDefaults = { wheelbase:140, tireRadius:16.5, cgHeight:24, cornerWeights:{FL:750,FR:750,RL:900,RR:900} };
+  function loadVehicleProfile(){
+    try{
+      var raw = localStorage.getItem(VP_KEY);
+      if(!raw) return JSON.parse(JSON.stringify(vpDefaults));
+      var parsed = JSON.parse(raw);
+      var merged = JSON.parse(JSON.stringify(vpDefaults));
+      if(typeof parsed.wheelbase === "number") merged.wheelbase = parsed.wheelbase;
+      if(typeof parsed.tireRadius === "number") merged.tireRadius = parsed.tireRadius;
+      if(typeof parsed.cgHeight === "number") merged.cgHeight = parsed.cgHeight;
+      if(parsed.cornerWeights){
+        ["FL","FR","RL","RR"].forEach(function(k){ if(typeof parsed.cornerWeights[k] === "number") merged.cornerWeights[k] = parsed.cornerWeights[k]; });
+      }
+      return merged;
+    }catch(e){ return JSON.parse(JSON.stringify(vpDefaults)); }
+  }
+  var vehicleProfile = loadVehicleProfile();
+
+  function updateProfileSummary(){
+    var w = vehicleProfile.cornerWeights;
+    document.getElementById("srProfileText").textContent =
+      "corner weights FL " + w.FL + " lb / FR " + w.FR + " lb / RL " + w.RL + " lb / RR " + w.RR + " lb";
+  }
+  document.getElementById("srProfileLink").addEventListener("click", function(ev){
+    ev.preventDefault();
+    var navBtn = document.querySelector('.nav-item[data-view="view-vehicle-profile"]');
+    if(navBtn) navBtn.click();
+  });
+  document.getElementById("view-springrate").addEventListener("viewshown", function(){
+    vehicleProfile = loadVehicleProfile();
+    updateProfileSummary();
+    render();
+  });
 
   // ---------- math ----------
   function wheelRate(springRate, mr){ return springRate * mr * mr; }
@@ -1176,11 +1432,6 @@ footer.credit a{ color:var(--accent-2); }
   bindNumber("srBagVolume", state.air, "volume");
   bindNumber("srAirMR", state.air, "mr");
 
-  bindNumber("srWtFL", state.weights, "FL");
-  bindNumber("srWtFR", state.weights, "FR");
-  bindNumber("srWtRL", state.weights, "RL");
-  bindNumber("srWtRR", state.weights, "RR");
-
   var cornerSelect = document.getElementById("srCornerActive");
   cornerSelect.value = state.corner;
   cornerSelect.addEventListener("change", function(){
@@ -1203,7 +1454,7 @@ footer.credit a{ color:var(--accent-2); }
   });
 
   function render(){
-    var weight = state.weights[state.corner] || 0;
+    var weight = vehicleProfile.cornerWeights[state.corner] || 0;
 
     var springRate, wheelRt, deflection;
     if(state.mode==="coil"){
@@ -1261,10 +1512,6 @@ footer.credit a{ color:var(--accent-2); }
     document.getElementById("srBagArea").value = state.air.area;
     document.getElementById("srBagVolume").value = state.air.volume;
     document.getElementById("srAirMR").value = state.air.mr;
-    document.getElementById("srWtFL").value = state.weights.FL;
-    document.getElementById("srWtFR").value = state.weights.FR;
-    document.getElementById("srWtRL").value = state.weights.RL;
-    document.getElementById("srWtRR").value = state.weights.RR;
     cornerSelect.value = state.corner;
     presetSelect.value = state.air.preset;
     setMode(state.mode);
@@ -1279,6 +1526,7 @@ footer.credit a{ color:var(--accent-2); }
     setTimeout(function(){ btn.textContent = old; }, 1200);
   });
 
+  updateProfileSummary();
   buildGauge();
   setMode(state.mode);
 })();
