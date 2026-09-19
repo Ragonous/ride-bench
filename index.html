@@ -224,7 +224,7 @@ footer.credit a{ color:var(--accent-2); }
       <button class="nav-item active" data-view="view-getting-started" type="button">Getting Started</button>
       <button class="nav-item" data-view="view-4link" type="button">4-Link Geometry</button>
       <button class="nav-item" data-view="view-springrate" type="button">Spring &amp; Bag Rate</button>
-      <button class="nav-item disabled" type="button" disabled>Steering Geometry <span class="soon">Soon</span></button>
+      <button class="nav-item" data-view="view-steering" type="button">Steering Geometry</button>
       <button class="nav-item disabled" type="button" disabled>Ride Height Log <span class="soon">Soon</span></button>
       <button class="nav-item disabled" type="button" disabled>3D Interactive View <span class="soon">Soon</span></button>
     </div>
@@ -254,6 +254,11 @@ footer.credit a{ color:var(--accent-2); }
         <div class="field">
           <label for="vpTireRadius">Loaded tire radius</label>
           <input type="number" id="vpTireRadius" step="0.25" />
+        </div>
+        <div class="field">
+          <label for="vpTrackWidth">Track width</label>
+          <input type="number" id="vpTrackWidth" step="0.5" />
+          <div class="hint">Side-to-side distance between wheel centerlines (front or rear — treated as one number here). Used by front-end tools like Steering Geometry.</div>
         </div>
         <div class="field">
           <label for="vpCgHeight">CG height above ground</label>
@@ -306,6 +311,9 @@ footer.credit a{ color:var(--accent-2); }
             <dl>
               <dt>Wheelbase / loaded tire radius</dt>
               <dd>Basic truck dimensions, in inches. Feed both the 4-Link tool's anti-squat geometry and (for tire radius) its diagram.</dd>
+
+              <dt>Track width</dt>
+              <dd>Side-to-side distance between wheel centerlines, in inches. Not used by the anti-squat or spring rate math, but it's a vehicle-level fact front-end tools want — Steering Geometry reads it for context, and it's here once so a future tool (an Ackermann checker, say) doesn't need its own copy either.</dd>
 
               <dt>CG height above ground</dt>
               <dd>The hardest number here to get right without real equipment — there's no simple scale trick for it the way there is for corner weight. A tilt-table measurement is the accurate way; short of that, treat this as an estimate and revisit it once you can measure it.</dd>
@@ -684,6 +692,131 @@ footer.credit a{ color:var(--accent-2); }
     Runs entirely in your browser — nothing is sent anywhere, and your inputs are saved locally via the Save button.
   </footer>
   </section>
+
+  <section class="app" id="view-steering" data-view-panel hidden>
+  <header class="top">
+    <div class="title-block">
+      <h1>Steering Geometry</h1>
+      <div class="sub">Front-view bump steer check for a solid-axle, track-bar/drag-link front end — drag the pivots, run the travel slider, watch toe error move.</div>
+    </div>
+    <div class="top-actions">
+      <button class="chip" id="stBtnReset" type="button">Reset geometry</button>
+      <button class="chip primary" id="stBtnSave" type="button">Save to browser</button>
+    </div>
+  </header>
+
+  <div class="notes">
+    Using: <span id="stProfileText">–</span> — <a href="#" id="stProfileLink" style="color:var(--accent-2);font-weight:600;">edit in Vehicle Profile</a>
+  </div>
+
+  <div class="layout">
+    <div class="panel">
+      <h2>Front view · drag any pivot</h2>
+      <div class="canvas-wrap">
+        <svg id="steerDiagram" viewBox="0 0 860 440" xmlns="http://www.w3.org/2000/svg"></svg>
+      </div>
+      <div class="legend">
+        <span><i style="background:var(--line-frame)"></i>Frame reference</span>
+        <span><i style="background:var(--line-lower)"></i>Track bar</span>
+        <span><i style="background:var(--line-upper)"></i>Drag link</span>
+        <span><i style="background:var(--ink);opacity:.5"></i>Axle</span>
+      </div>
+      <div class="travel-row">
+        <div class="labels">
+          <span>Droop</span>
+          <span class="state" id="steerTravelState">0.0° · static ride height</span>
+          <span>Bump</span>
+        </div>
+        <input type="range" id="steerTravelSlider" min="-20" max="20" value="0" step="0.5" />
+      </div>
+    </div>
+
+    <div class="side-col" style="display:flex;flex-direction:column;gap:16px;">
+      <div class="panel">
+        <h2>Live geometry</h2>
+        <div class="readout-grid">
+          <div class="stat wide" id="statBumpSteer">
+            <div class="k">Bump steer error</div>
+            <div class="v"><span id="vBumpSteerErr">–</span><span class="unit">in</span></div>
+          </div>
+          <div class="stat">
+            <div class="k">Track bar length</div>
+            <div class="v"><span id="vTrackLen">–</span><span class="unit">in</span></div>
+          </div>
+          <div class="stat">
+            <div class="k">Track bar angle</div>
+            <div class="v"><span id="vTrackAng">–</span><span class="unit">°</span></div>
+          </div>
+          <div class="stat">
+            <div class="k">Drag link length</div>
+            <div class="v"><span id="vDragLen">–</span><span class="unit">in</span></div>
+          </div>
+          <div class="stat">
+            <div class="k">Drag link angle</div>
+            <div class="v"><span id="vDragAng">–</span><span class="unit">°</span></div>
+          </div>
+          <div class="stat wide" id="statBumpSteerRisk">
+            <div class="k">Bump steer risk, full travel range</div>
+            <div class="v"><span id="vBumpSteerRisk">–</span><span class="unit">in max error</span></div>
+          </div>
+        </div>
+        <div class="notes" id="steerMechanismNote"></div>
+      </div>
+
+      <div class="panel">
+        <h2>Pivot coordinates</h2>
+        <div class="field-group" id="steerPivotFields"></div>
+        <div class="hint" style="margin-top:2px">Origin is the axle centerline at ride height, ground level. Positive x is toward one side of the truck, negative the other — pick a consistent side when you measure. Drag pivots on the diagram or type exact values here.</div>
+      </div>
+
+      <div class="panel">
+        <details class="help" open>
+          <summary>What do these settings mean?</summary>
+          <div class="notes">
+            <dl>
+              <dt>Tf / Ta — the track bar (panhard rod)</dt>
+              <dd><strong>Tf</strong> is where the track bar mounts to the frame. <strong>Ta</strong> is where it mounts to the axle. The track bar's only job is locating the axle side-to-side; as the suspension moves through travel, the axle arcs around Tf, since Ta is stuck the track bar's fixed length away from it.</dd>
+
+              <dt>Df / Da — the drag link</dt>
+              <dd><strong>Df</strong> is the drag link's frame-side end — effectively the pitman arm's output, hanging off the steering box. <strong>Da</strong> is where it connects to the steering arm on the axle knuckle. Turning the steering wheel moves Df in an arc around the steering box; that same link also has to tolerate the axle moving through suspension travel without steering the truck on its own.</dd>
+
+              <dt>Why the two links' geometry needs to match</dt>
+              <dd>As the axle moves up and down, Ta swings on an arc centered on Tf. For the steering to stay quiet through that same travel, Da needs to swing on essentially the same arc — same effective radius and a similar mounting angle to Tf's. If the drag link's length and angle (Df to Da) don't closely match the track bar's (Tf to Ta), Da gets pulled along a different arc than Ta, and the steering arm — and therefore the front wheels — gets tugged left or right purely from suspension movement, independent of anything the driver does with the wheel.</dd>
+
+              <dt>Bump steer error</dt>
+              <dd>The horizontal (toe) displacement of the drag link's axle-side point (Da) relative to where it would sit if it had swung through an identical arc to the track bar's axle-side point (Ta) — same rotation, same center. Near zero at every point in travel means the two links are tracking each other well. A large or growing value means the axle steers itself as it cycles.</dd>
+
+              <dt>What bump steer feels like on the road</dt>
+              <dd>Wandering that isn't a driver input — needing small, constant steering corrections to hold a line, especially over washboard or repeated bumps, or a sudden unplanned tug on the wheel when one front tire drops into a dip mid-corner. It's the suspension moving the steering, not the other way around.</dd>
+
+              <dt>Travel slider (droop / bump)</dt>
+              <dd>Re-solves both arcs the same way the 4-Link tool re-solves its four-bar linkage: the track bar rotates around Tf by the travel angle, which fixes a new axle-side point Ta; the drag link and the rigid axle (Ta to Da, a fixed distance) are then solved together to find where Da lands. Watch bump steer error through the full range — geometry that's quiet near ride height can get much worse at the travel extremes.</dd>
+
+              <dt>Bump steer risk, full travel range</dt>
+              <dd>The largest bump steer error seen anywhere across the whole travel slider sweep, not just at the current position — because a design can look fine at ride height and still go bad at one end of travel. Flagged good/warn/bad the same way the 4-Link tool flags anti-squat.</dd>
+
+              <dt>Fixing it</dt>
+              <dd>The usual fix is relocating one of the frame-side pivots (Tf or Df) so the two links' lengths and mounting angles come closer together — not something to weld up and hope. Drag the pivots here and watch the error number before you commit to a bracket location.</dd>
+
+              <dt>Wheelbase / tire radius / track width</dt>
+              <dd>These describe the truck itself, not the steering linkage, and live in the shared <strong>Vehicle Profile</strong> view rather than here — this page just reads them for reference (see the "Using:" line above).</dd>
+            </dl>
+          </div>
+        </details>
+      </div>
+
+      <div class="panel">
+        <div class="notes">
+          <strong>Limits of this model:</strong> this is a 2D front-view approximation, same spirit as the 4-Link tool's side-view one. It treats the track bar and drag link as simple rigid links pivoting in one plane, ignores bushing compliance, steering box lash, and Ackermann/tie-rod geometry on the rest of the steering linkage, and assumes the "identical arc" comparison as the standard for zero bump steer. Use it to compare pivot locations and sanity-check geometry before cutting brackets — not a replacement for driving the truck and feeling for it.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <footer class="credit">
+    Runs entirely in your browser — nothing is sent anywhere, and your geometry is saved locally via the Save button.
+  </footer>
+  </section>
   </main>
 </div>
 
@@ -719,6 +852,7 @@ footer.credit a{ color:var(--accent-2); }
   var defaults = {
     wheelbase: 140,
     tireRadius: 16.5,
+    trackWidth: 67,
     cgHeight: 24,
     cornerWeights: { FL:750, FR:750, RL:900, RR:900 }
   };
@@ -760,6 +894,7 @@ footer.credit a{ color:var(--accent-2); }
         var merged = JSON.parse(JSON.stringify(defaults));
         if(typeof parsed.wheelbase === "number") merged.wheelbase = parsed.wheelbase;
         if(typeof parsed.tireRadius === "number") merged.tireRadius = parsed.tireRadius;
+        if(typeof parsed.trackWidth === "number") merged.trackWidth = parsed.trackWidth;
         if(typeof parsed.cgHeight === "number") merged.cgHeight = parsed.cgHeight;
         if(parsed.cornerWeights){
           ["FL","FR","RL","RR"].forEach(function(k){ if(typeof parsed.cornerWeights[k] === "number") merged.cornerWeights[k] = parsed.cornerWeights[k]; });
@@ -799,6 +934,7 @@ footer.credit a{ color:var(--accent-2); }
   }
   bindNumber("vpWheelbase", state, "wheelbase");
   bindNumber("vpTireRadius", state, "tireRadius");
+  bindNumber("vpTrackWidth", state, "trackWidth");
   bindNumber("vpCgHeight", state, "cgHeight");
   bindNumber("vpWtFL", state.cornerWeights, "FL");
   bindNumber("vpWtFR", state.cornerWeights, "FR");
@@ -809,6 +945,7 @@ footer.credit a{ color:var(--accent-2); }
     state = JSON.parse(JSON.stringify(defaults));
     document.getElementById("vpWheelbase").value = state.wheelbase;
     document.getElementById("vpTireRadius").value = state.tireRadius;
+    document.getElementById("vpTrackWidth").value = state.trackWidth;
     document.getElementById("vpCgHeight").value = state.cgHeight;
     document.getElementById("vpWtFL").value = state.cornerWeights.FL;
     document.getElementById("vpWtFR").value = state.cornerWeights.FR;
@@ -1517,6 +1654,348 @@ footer.credit a{ color:var(--accent-2); }
   updateProfileSummary();
   buildGauge();
   setMode(state.mode);
+})();
+</script>
+<script>
+(function(){
+  "use strict";
+
+  // ---------- persistence ----------
+  var STORAGE_KEY = "steering-geometry-v1";
+
+  var defaults = {
+    Tf:{x:-22, y:24},  // track bar, frame end
+    Ta:{x:22,  y:13},  // track bar, axle end
+    Df:{x:-18, y:21},  // drag link, frame end (pitman arm output)
+    Da:{x:18,  y:10}   // drag link, axle end (steering arm)
+  };
+
+  function loadState(){
+    try{
+      var raw = localStorage.getItem(STORAGE_KEY);
+      if(!raw) return JSON.parse(JSON.stringify(defaults));
+      var parsed = JSON.parse(raw);
+      var merged = JSON.parse(JSON.stringify(defaults));
+      for(var k in merged){ if(parsed[k]!==undefined) merged[k]=parsed[k]; }
+      return merged;
+    }catch(e){ return JSON.parse(JSON.stringify(defaults)); }
+  }
+  function saveState(){
+    try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }catch(e){ /* private mode / blocked storage */ }
+  }
+
+  var state = loadState();
+
+  // ---------- shared vehicle profile (wheelbase, tire radius, track width) ----------
+  // Owned by the Vehicle Profile view/script; read-only from here.
+  var VP_KEY = "vehicleProfile-v1";
+  var vpDefaults = { wheelbase:140, tireRadius:16.5, trackWidth:67, cgHeight:24, cornerWeights:{FL:750,FR:750,RL:900,RR:900} };
+  function loadVehicleProfile(){
+    try{
+      var raw = localStorage.getItem(VP_KEY);
+      if(!raw) return JSON.parse(JSON.stringify(vpDefaults));
+      var parsed = JSON.parse(raw);
+      var merged = JSON.parse(JSON.stringify(vpDefaults));
+      if(typeof parsed.wheelbase === "number") merged.wheelbase = parsed.wheelbase;
+      if(typeof parsed.tireRadius === "number") merged.tireRadius = parsed.tireRadius;
+      if(typeof parsed.trackWidth === "number") merged.trackWidth = parsed.trackWidth;
+      if(typeof parsed.cgHeight === "number") merged.cgHeight = parsed.cgHeight;
+      if(parsed.cornerWeights){
+        ["FL","FR","RL","RR"].forEach(function(k){ if(typeof parsed.cornerWeights[k] === "number") merged.cornerWeights[k] = parsed.cornerWeights[k]; });
+      }
+      return merged;
+    }catch(e){ return JSON.parse(JSON.stringify(vpDefaults)); }
+  }
+  var vehicleProfile = loadVehicleProfile();
+
+  function updateProfileSummary(){
+    document.getElementById("stProfileText").textContent =
+      'wheelbase ' + vehicleProfile.wheelbase + '", tire radius ' + vehicleProfile.tireRadius + '", track width ' + vehicleProfile.trackWidth + '"';
+  }
+  document.getElementById("stProfileLink").addEventListener("click", function(ev){
+    ev.preventDefault();
+    var navBtn = document.querySelector('.nav-item[data-view="view-vehicle-profile"]');
+    if(navBtn) navBtn.click();
+  });
+  document.getElementById("view-steering").addEventListener("viewshown", function(){
+    vehicleProfile = loadVehicleProfile();
+    updateProfileSummary();
+    render();
+  });
+
+  // ---------- geometry helpers (same technique as the 4-Link tool's linkage solve) ----------
+  function dist(a,b){ return Math.hypot(a.x-b.x, a.y-b.y); }
+  function angleDeg(a,b){ return Math.atan2(b.y-a.y, b.x-a.x)*180/Math.PI; }
+
+  function circleIntersect(c1,r1,c2,r2){
+    var d = dist(c1,c2);
+    if(d > r1+r2 + 1e-6 || d < Math.abs(r1-r2) - 1e-6 || d < 1e-9) return [];
+    var a = (r1*r1 - r2*r2 + d*d) / (2*d);
+    var hh = Math.max(0, r1*r1 - a*a);
+    var h = Math.sqrt(hh);
+    var xm = c1.x + a*(c2.x-c1.x)/d;
+    var ym = c1.y + a*(c2.y-c1.y)/d;
+    var xs1 = xm + h*(c2.y-c1.y)/d;
+    var ys1 = ym - h*(c2.x-c1.x)/d;
+    var xs2 = xm - h*(c2.y-c1.y)/d;
+    var ys2 = ym + h*(c2.x-c1.x)/d;
+    return [{x:xs1,y:ys1},{x:xs2,y:ys2}];
+  }
+
+  function closerTo(pts, ref){
+    if(pts.length===0) return null;
+    if(pts.length===1) return pts[0];
+    return dist(pts[0],ref) <= dist(pts[1],ref) ? pts[0] : pts[1];
+  }
+
+  // ---------- coordinate mapping (world inches, y-up, origin at axle centerline) <-> svg pixels ----------
+  var PX = 4.4;
+  var ORIGIN_X = 430;
+  var GROUND_Y = 372;
+
+  function toSvg(p){ return { x: ORIGIN_X + p.x*PX, y: GROUND_Y - p.y*PX }; }
+  function toWorld(p){ return { x: (p.x-ORIGIN_X)/PX, y: (GROUND_Y-p.y)/PX }; }
+
+  function computeAtTravel(dThetaDeg){
+    var Tf=state.Tf, Df=state.Df;
+    var Lt = dist(Tf, state.Ta);
+    var Ld = dist(Df, state.Da);
+    var D  = dist(state.Ta, state.Da);
+
+    var theta_t0 = Math.atan2(state.Ta.y-Tf.y, state.Ta.x-Tf.x);
+    var theta_t = theta_t0 + dThetaDeg*Math.PI/180;
+    var Ta = { x: Tf.x + Lt*Math.cos(theta_t), y: Tf.y + Lt*Math.sin(theta_t) };
+
+    var candidates = circleIntersect(Df, Ld, Ta, D);
+    var Da = closerTo(candidates, state.Da);
+    var mechanismOk = !!Da;
+    if(!Da) Da = state.Da;
+
+    return { Tf:Tf, Df:Df, Ta:Ta, Da:Da, Lt:Lt, Ld:Ld, D:D, ok:mechanismOk };
+  }
+
+  // Bump steer error: how far Da actually lands vs. where it would land if it swung
+  // through the exact same rotation (about Tf) that Ta experienced.
+  function computeBumpSteerError(m, dThetaDeg){
+    var dPhi = dThetaDeg * Math.PI/180;
+    var dx = state.Da.x - m.Tf.x;
+    var dy = state.Da.y - m.Tf.y;
+    var cosP = Math.cos(dPhi), sinP = Math.sin(dPhi);
+    var expected = { x: m.Tf.x + dx*cosP - dy*sinP, y: m.Tf.y + dx*sinP + dy*cosP };
+    return m.Da.x - expected.x;
+  }
+
+  function computeMaxBumpSteerRange(){
+    var maxAbs = 0;
+    for(var t=-20; t<=20; t+=2){
+      var m = computeAtTravel(t);
+      var err = computeBumpSteerError(m, t);
+      maxAbs = Math.max(maxAbs, Math.abs(err));
+    }
+    return maxAbs;
+  }
+
+  function flagFor(el, absVal){
+    el.className = "stat wide";
+    if(absVal <= 0.15) el.classList.add("flag-good");
+    else if(absVal <= 0.35) el.classList.add("flag-warn");
+    else el.classList.add("flag-bad");
+  }
+
+  // ---------- SVG scene ----------
+  var svg = document.getElementById("steerDiagram");
+  var NS = "http://www.w3.org/2000/svg";
+  function el(tag, attrs){
+    var e = document.createElementNS(NS, tag);
+    for(var k in attrs) e.setAttribute(k, attrs[k]);
+    return e;
+  }
+
+  var layerStatic = el("g",{});
+  var layerDynamic = el("g",{});
+  svg.appendChild(layerStatic);
+  svg.appendChild(layerDynamic);
+
+  function buildStaticLayer(){
+    layerStatic.innerHTML = "";
+    var grid = el("g",{});
+    for(var gx=-70; gx<=70; gx+=10){
+      var p = toSvg({x:gx,y:0});
+      grid.appendChild(el("line",{x1:p.x,y1:GROUND_Y+14,x2:p.x,y2:60,stroke:"var(--canvas-grid)","stroke-width":1}));
+    }
+    for(var gy=0; gy<=50; gy+=10){
+      var q = toSvg({x:-70,y:gy}), q2=toSvg({x:70,y:gy});
+      grid.appendChild(el("line",{x1:q.x,y1:q.y,x2:q2.x,y2:q2.y,stroke:"var(--canvas-grid)","stroke-width":1}));
+    }
+    layerStatic.appendChild(grid);
+
+    var g1 = toSvg({x:-70,y:0}), g2 = toSvg({x:70,y:0});
+    layerStatic.appendChild(el("line",{x1:g1.x,y1:g1.y,x2:g2.x,y2:g2.y,stroke:"var(--ink)","stroke-width":2}));
+    var groundLabel = el("text",{x:g2.x-4,y:g2.y+16,"text-anchor":"end",class:"pin-label"});
+    groundLabel.textContent = "ground";
+    layerStatic.appendChild(groundLabel);
+
+    var fr1 = toSvg({x:-60, y:32}), fr2 = toSvg({x:60,y:32});
+    layerStatic.appendChild(el("line",{x1:fr1.x,y1:fr1.y,x2:fr2.x,y2:fr2.y,stroke:"var(--line-frame)","stroke-width":5,"stroke-linecap":"round",opacity:.85}));
+
+    var cl1 = toSvg({x:0,y:0}), cl2 = toSvg({x:0,y:50});
+    layerStatic.appendChild(el("line",{x1:cl1.x,y1:cl1.y,x2:cl2.x,y2:cl2.y,stroke:"var(--muted)","stroke-width":1,"stroke-dasharray":"2 4",opacity:.5}));
+  }
+
+  var axleBodyEl, trackBarEl, dragLinkEl, pivotEls;
+
+  function makeDynamicSkeleton(){
+    layerDynamic.innerHTML = "";
+
+    axleBodyEl = el("line",{stroke:"var(--ink)","stroke-width":6,"stroke-linecap":"round",opacity:.9});
+    layerDynamic.appendChild(axleBodyEl);
+
+    trackBarEl = el("line",{stroke:"var(--line-lower)","stroke-width":4,"stroke-linecap":"round"});
+    dragLinkEl = el("line",{stroke:"var(--line-upper)","stroke-width":4,"stroke-linecap":"round"});
+    layerDynamic.appendChild(trackBarEl);
+    layerDynamic.appendChild(dragLinkEl);
+
+    pivotEls = {};
+    var pivotMeta = [
+      {key:"Tf", color:"var(--line-lower)", label:"Tf"},
+      {key:"Ta", color:"var(--line-lower)", label:"Ta"},
+      {key:"Df", color:"var(--line-upper)", label:"Df"},
+      {key:"Da", color:"var(--line-upper)", label:"Da"}
+    ];
+    pivotMeta.forEach(function(meta){
+      var c = el("circle",{r:8, fill:meta.color, stroke:"var(--surface)","stroke-width":2, style:"cursor:grab"});
+      c.dataset.key = meta.key;
+      var lbl = el("text",{class:"pin-label", "text-anchor":"middle", fill:"var(--ink)","font-weight":"700"});
+      lbl.textContent = meta.label;
+      layerDynamic.appendChild(c);
+      layerDynamic.appendChild(lbl);
+      pivotEls[meta.key] = { circle:c, label:lbl };
+      attachDrag(c, meta.key);
+    });
+  }
+
+  function attachDrag(node, key){
+    node.addEventListener("pointerdown", function(ev){
+      node.setPointerCapture(ev.pointerId);
+      node.style.cursor = "grabbing";
+      function move(mv){
+        var pt = svg.createSVGPoint();
+        pt.x = mv.clientX; pt.y = mv.clientY;
+        var ctm = svg.getScreenCTM();
+        if(!ctm) return;
+        var loc = pt.matrixTransform(ctm.inverse());
+        var w = toWorld(loc);
+        w.y = Math.max(0, w.y);
+        state[key] = { x: Math.round(w.x*10)/10, y: Math.round(w.y*10)/10 };
+        render();
+      }
+      function up(){
+        node.style.cursor = "grab";
+        window.removeEventListener("pointermove", move);
+        window.removeEventListener("pointerup", up);
+        saveState();
+        renderPivotFields();
+      }
+      window.addEventListener("pointermove", move);
+      window.addEventListener("pointerup", up);
+    });
+  }
+
+  var travelDeg = 0;
+
+  function render(){
+    var m = computeAtTravel(travelDeg);
+    var err = computeBumpSteerError(m, travelDeg);
+
+    var tfSvg = toSvg(m.Tf), taSvg = toSvg(m.Ta), dfSvg = toSvg(m.Df), daSvg = toSvg(m.Da);
+
+    axleBodyEl.setAttribute("x1", taSvg.x); axleBodyEl.setAttribute("y1", taSvg.y);
+    axleBodyEl.setAttribute("x2", daSvg.x); axleBodyEl.setAttribute("y2", daSvg.y);
+
+    trackBarEl.setAttribute("x1", tfSvg.x); trackBarEl.setAttribute("y1", tfSvg.y);
+    trackBarEl.setAttribute("x2", taSvg.x); trackBarEl.setAttribute("y2", taSvg.y);
+    dragLinkEl.setAttribute("x1", dfSvg.x); dragLinkEl.setAttribute("y1", dfSvg.y);
+    dragLinkEl.setAttribute("x2", daSvg.x); dragLinkEl.setAttribute("y2", daSvg.y);
+
+    ["Tf","Ta","Df","Da"].forEach(function(key){
+      var p = toSvg(m[key] || state[key]);
+      pivotEls[key].circle.setAttribute("cx", p.x);
+      pivotEls[key].circle.setAttribute("cy", p.y);
+      pivotEls[key].label.setAttribute("x", p.x);
+      pivotEls[key].label.setAttribute("y", p.y - 13);
+    });
+
+    document.getElementById("vBumpSteerErr").textContent = (err>=0?"+":"") + err.toFixed(2);
+    document.getElementById("vTrackLen").textContent = m.Lt.toFixed(1);
+    document.getElementById("vTrackAng").textContent = angleDeg(m.Tf, m.Ta).toFixed(1);
+    document.getElementById("vDragLen").textContent = m.Ld.toFixed(1);
+    document.getElementById("vDragAng").textContent = angleDeg(m.Df, m.Da).toFixed(1);
+
+    flagFor(document.getElementById("statBumpSteer"), Math.abs(err));
+
+    var maxAbs = computeMaxBumpSteerRange();
+    document.getElementById("vBumpSteerRisk").textContent = maxAbs.toFixed(2);
+    flagFor(document.getElementById("statBumpSteerRisk"), maxAbs);
+
+    var stateLabel = travelDeg===0 ? "static ride height" : (travelDeg>0 ? "bump ("+travelDeg.toFixed(1)+"°)" : "droop ("+Math.abs(travelDeg).toFixed(1)+"°)");
+    document.getElementById("steerTravelState").textContent = travelDeg.toFixed(1)+"° · "+stateLabel;
+
+    var note = document.getElementById("steerMechanismNote");
+    note.innerHTML = m.ok ? "" : "<strong>Mechanism can't reach this travel</strong> — the link lengths don't allow this track-bar angle. Showing the last valid position; reduce travel or adjust pivot geometry.";
+  }
+
+  function renderPivotFields(){
+    var wrap = document.getElementById("steerPivotFields");
+    var labels = {Tf:"Track bar, frame end",Ta:"Track bar, axle end",Df:"Drag link, frame end (pitman arm)",Da:"Drag link, axle end (steering arm)"};
+    wrap.innerHTML = "";
+    ["Tf","Ta","Df","Da"].forEach(function(key){
+      var row = document.createElement("div");
+      row.className = "field";
+      row.innerHTML =
+        '<label>'+labels[key]+'</label>'+
+        '<span style="display:flex;gap:6px;">'+
+          '<input type="number" step="0.5" data-key="'+key+'" data-axis="x" value="'+state[key].x+'" style="width:56px" aria-label="'+labels[key]+' x">'+
+          '<input type="number" step="0.5" data-key="'+key+'" data-axis="y" value="'+state[key].y+'" style="width:56px" aria-label="'+labels[key]+' y">'+
+        '</span>';
+      wrap.appendChild(row);
+    });
+    wrap.querySelectorAll("input").forEach(function(inp){
+      inp.addEventListener("input", function(){
+        var key = inp.dataset.key, axis = inp.dataset.axis;
+        var v = parseFloat(inp.value);
+        if(!isNaN(v)){ state[key][axis] = v; render(); }
+      });
+      inp.addEventListener("change", saveState);
+    });
+  }
+
+  document.getElementById("steerTravelSlider").addEventListener("input", function(e){
+    travelDeg = parseFloat(e.target.value);
+    render();
+  });
+
+  document.getElementById("stBtnReset").addEventListener("click", function(){
+    state = JSON.parse(JSON.stringify(defaults));
+    document.getElementById("steerTravelSlider").value = 0;
+    travelDeg = 0;
+    renderPivotFields();
+    render();
+    saveState();
+  });
+
+  document.getElementById("stBtnSave").addEventListener("click", function(){
+    saveState();
+    var btn = document.getElementById("stBtnSave");
+    var old = btn.textContent;
+    btn.textContent = "Saved ✓";
+    setTimeout(function(){ btn.textContent = old; }, 1200);
+  });
+
+  updateProfileSummary();
+  buildStaticLayer();
+  makeDynamicSkeleton();
+  renderPivotFields();
+  render();
 })();
 </script>
 </body>
