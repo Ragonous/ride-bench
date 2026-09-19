@@ -1,6 +1,6 @@
 # Ride Bench
 
-Suspension design tools for the shop, built for the Li'l Or'nge build (1991.5 Dodge D250 Cummins on a 1975 D150 body). Currently: a shared Vehicle Profile, an interactive rear 4-link geometry tool, a spring/bag rate calculator, and a front-end steering (bump steer) geometry tool. More tools (ride height log, 3D interactive view) slot into the sidebar as they're built.
+Suspension design tools for the shop, built for the Li'l Or'nge build (1991.5 Dodge D250 Cummins on a 1975 D150 body). Currently: a shared Vehicle Profile, an interactive rear 4-link geometry tool, a spring/bag rate calculator, a front-end steering (bump steer) geometry tool, and a ride height log. More tools (a 3D interactive view) slot into the sidebar as they're built.
 
 This is a single self-contained `index.html` file — no build step, no server, no dependencies to install. It runs entirely in your browser; nothing is uploaded anywhere, and the only "backend" is your browser's local storage, used to remember your last geometry on your own device.
 
@@ -85,20 +85,32 @@ The page has its own "What do these settings mean?" panel explaining what a trac
 
 **Limits:** this is a 2D front-view approximation, same spirit as the 4-Link tool's side-view one. It ignores bushing compliance, steering box lash, and the rest of the steering linkage's Ackermann/tie-rod geometry, and treats "identical arc to the track bar" as the standard for zero bump steer.
 
+### Ride Height Log
+A running record of measured ride height at all four corners, so changes (new springs, a bag pressure adjustment, added weight, worn bushings) can be checked against what was actually measured before — instead of relying on memory of "it used to sit higher."
+
+- **Log a measurement** — a date (defaults to today), a height reading for each corner (in, measured however you define ride height — fender lip to ground, for example), and a free-text note (e.g. "after installing new rear leaf pack" or "bags at 70psi"). Add entry appends it to the log and saves immediately.
+- **Logged entries** — a table of every entry, most recent first, with a delete button per row. Deleting takes two clicks (the button turns into "Confirm delete?" and reverts on its own after a few seconds) so a misclick can't quietly erase history.
+- **Most recent reading** — average front height, average rear height, and the front-minus-rear difference (rake) for the latest entry, so a nose-high or nose-low trend is visible at a glance without reading every row.
+- **Height over time chart** — once there are 2+ entries, a small hand-drawn SVG line chart (one line per corner, in the app's existing color tokens) plots each corner's height across all logged dates.
+
+The page has its own "What do these settings mean?" panel explaining why a consistent measuring reference point matters, what a front/rear height difference (rake) affects (headlight aim, aero, sometimes handling balance), and why it's worth logging a baseline now — even with rough numbers — and logging again after every suspension-related change.
+
+**Limits:** it's a log, not a calculator — there's no cross-check against the other tools or unit conversion, just the simple front/rear split above. It's only as useful as the discipline of measuring the same way and logging consistently.
+
 ### Coming next
-- **Ride Height Log** — track measured ride heights and settings changes over time.
 - **3D Interactive View** — a 3D look at the suspension geometry, beyond the current 2D side view.
 
 The sidebar's full roadmap order is Vehicle Profile → Getting Started → 4-Link Geometry → Spring & Bag Rate → Steering Geometry → Ride Height Log → 3D Interactive View.
 
 ## How the tools relate
 
-4-Link Geometry, Spring & Bag Rate, and Steering Geometry all read truck-level numbers live from the shared **Vehicle Profile** (see above) — so wheelbase, tire radius, track width, CG height, and corner weights can no longer drift apart between tools. That doesn't make everything automatic, though; a few things are still on you to keep consistent by hand:
+4-Link Geometry, Spring & Bag Rate, and Steering Geometry all read truck-level numbers live from the shared **Vehicle Profile** (see above) — so wheelbase, tire radius, track width, CG height, and corner weights can no longer drift apart between those three tools. That doesn't make everything automatic, though; a few things are still on you to keep consistent by hand:
 
 - **Motion ratio per mode** — Spring & Bag Rate stores motion ratio separately for coil mode and air mode on the same corner. Switching modes doesn't carry the value over — recheck it.
 - **Air spring rate is pressure-dependent** — a wheel rate calculated at one bag pressure doesn't hold once you change ride height by changing pressure. Recalculate after adjusting.
 - **CG height is a manual estimate** — unlike CG fore-aft (auto-calculated from corner weights), CG height has no simple scale trick and stays whatever you've entered in Vehicle Profile until you measure it some other way.
 - **Steering Geometry's own pivot geometry is independent** — its track bar/drag link pivot coordinates are a separate concern from the shared Vehicle Profile and live in their own `steering-geometry-v1` storage key, same as 4-Link Geometry's pivots do for the rear.
+- **Ride Height Log is intentionally disconnected from Vehicle Profile** — logged ride heights are a measured quantity that changes over time, not a design input the calculators need, so it keeps its own `rideheightlog-v1` storage key and doesn't read or write Vehicle Profile at all.
 
 The in-app **Getting Started** view documents this in more detail, with first-time walkthroughs for each tool.
 

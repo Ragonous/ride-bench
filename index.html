@@ -188,6 +188,20 @@ input[type="range"]::-moz-range-thumb{
 .freq-gauge .zone-label{ font-family:'JetBrains Mono',monospace; font-size:9px; fill:var(--muted); }
 .freq-gauge .val-label{ font-family:'JetBrains Mono',monospace; font-size:11px; font-weight:700; fill:var(--ink); }
 
+.rh-chart{ width:100%; }
+.rh-chart .axis-label{ font-family:'JetBrains Mono',monospace; font-size:9px; fill:var(--muted); }
+
+.log-table{ width:100%; border-collapse:collapse; font-size:.78rem; }
+.log-table th, .log-table td{ padding:6px 8px; border-bottom:1px solid var(--grid); text-align:left; vertical-align:top; }
+.log-table th{ font-size:.62rem; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:var(--muted); }
+.log-table td.num{ font-family:'JetBrains Mono',monospace; font-variant-numeric:tabular-nums; white-space:nowrap; }
+.log-table td.note-cell{ color:var(--muted); }
+.log-empty{ color:var(--muted); font-size:.78rem; padding:8px 0; }
+
+button.chip.small{ padding:4px 9px; font-size:.62rem; }
+button.chip.danger{ border-color:var(--danger); color:var(--danger); }
+button.chip.danger:hover{ background:var(--danger); color:var(--accent-ink); }
+
 .notes{ font-size:.76rem; line-height:1.6; color:var(--muted); }
 .notes strong{color:var(--ink);}
 .notes dl{margin:0;}
@@ -225,7 +239,7 @@ footer.credit a{ color:var(--accent-2); }
       <button class="nav-item" data-view="view-4link" type="button">4-Link Geometry</button>
       <button class="nav-item" data-view="view-springrate" type="button">Spring &amp; Bag Rate</button>
       <button class="nav-item" data-view="view-steering" type="button">Steering Geometry</button>
-      <button class="nav-item disabled" type="button" disabled>Ride Height Log <span class="soon">Soon</span></button>
+      <button class="nav-item" data-view="view-rideheight" type="button">Ride Height Log</button>
       <button class="nav-item disabled" type="button" disabled>3D Interactive View <span class="soon">Soon</span></button>
     </div>
   </nav>
@@ -815,6 +829,116 @@ footer.credit a{ color:var(--accent-2); }
 
   <footer class="credit">
     Runs entirely in your browser — nothing is sent anywhere, and your geometry is saved locally via the Save button.
+  </footer>
+  </section>
+
+  <section class="app" id="view-rideheight" data-view-panel hidden>
+  <header class="top">
+    <div class="title-block">
+      <h1>Ride Height Log</h1>
+      <div class="sub">A running record of measured ride height at all four corners, so changes can be tracked against what was measured before.</div>
+    </div>
+  </header>
+
+  <div class="layout">
+    <div class="panel">
+      <h2>Log a measurement</h2>
+      <div class="field-group">
+        <div class="field">
+          <label for="rhDate">Date</label>
+          <input type="date" id="rhDate" />
+        </div>
+        <div class="field">
+          <label for="rhFL">Front left height</label>
+          <input type="number" id="rhFL" step="0.125" />
+        </div>
+        <div class="field">
+          <label for="rhFR">Front right height</label>
+          <input type="number" id="rhFR" step="0.125" />
+        </div>
+        <div class="field">
+          <label for="rhRL">Rear left height</label>
+          <input type="number" id="rhRL" step="0.125" />
+        </div>
+        <div class="field">
+          <label for="rhRR">Rear right height</label>
+          <input type="number" id="rhRR" step="0.125" />
+        </div>
+        <div class="hint">Inches, measured however you define ride height (e.g. fender lip to ground) — just always measure the same reference point on the same truck, so entries stay comparable to each other.</div>
+      </div>
+      <div style="margin-top:10px;">
+        <label for="rhNote" style="font-size:.76rem;font-weight:600;color:var(--ink);display:block;margin-bottom:6px;">Note</label>
+        <input type="text" id="rhNote" placeholder="e.g. after installing new rear leaf pack, bags at 70psi..." style="width:100%; box-sizing:border-box; font-family:'Archivo',sans-serif; font-size:.82rem; background:var(--surface-2); border:1px solid var(--grid); color:var(--ink); border-radius:3px; padding:7px 8px;" />
+      </div>
+      <div class="top-actions" style="margin-top:12px;">
+        <button class="chip primary" id="rhBtnAdd" type="button">Add entry</button>
+      </div>
+    </div>
+
+    <div class="side-col" style="display:flex;flex-direction:column;gap:16px;">
+      <div class="panel">
+        <h2>Most recent reading</h2>
+        <div class="readout-grid">
+          <div class="stat">
+            <div class="k">Front avg</div>
+            <div class="v"><span id="rhVFrontAvg">–</span><span class="unit">in</span></div>
+          </div>
+          <div class="stat">
+            <div class="k">Rear avg</div>
+            <div class="v"><span id="rhVRearAvg">–</span><span class="unit">in</span></div>
+          </div>
+          <div class="stat wide">
+            <div class="k">Front − rear (rake)</div>
+            <div class="v"><span id="rhVDelta">–</span><span class="unit">in</span></div>
+          </div>
+        </div>
+        <div class="notes" id="rhDeltaNote"></div>
+      </div>
+
+      <div class="panel">
+        <details class="help" open>
+          <summary>What do these settings mean?</summary>
+          <div class="notes">
+            <dl>
+              <dt>Why the reference point matters</dt>
+              <dd>Ride height only means something if it's measured the same way every time — same point on the body (fender lip, rocker, frame rail, whatever you pick), same point on the ground, same tire pressure. Switching reference points between entries makes the log compare apples to oranges; pick one method and stick with it for this truck.</dd>
+
+              <dt>Front − rear (rake)</dt>
+              <dd>The difference between average front height and average rear height. A positive number means the front sits higher than the rear (nose-high); negative means nose-low. Rake affects headlight aim, aerodynamics, and sometimes handling balance — worth tracking alongside the raw corner numbers, not just each corner in isolation.</dd>
+
+              <dt>Log a baseline now, then log again after every change</dt>
+              <dd>This log is most useful as a before/after record. Log a baseline today even with rough or placeholder numbers — a rough baseline beats no baseline. Then log again any time something suspension-related changes (new springs, a bag pressure adjustment, added weight, worn bushings) so there's an actual measured record to check "did that change do what I expected" against, instead of relying on memory of "it used to sit higher."</dd>
+            </dl>
+          </div>
+        </details>
+      </div>
+
+      <div class="panel">
+        <div class="notes">
+          <strong>Limits of this log:</strong> it just records what you type in — there's no cross-check against the other tools, and no unit conversion or averaging beyond the simple front/rear split above. Garbage in, garbage out: it's only as useful as the discipline of measuring the same way and logging consistently.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel" id="rhChartPanel" hidden>
+    <h2>Height over time</h2>
+    <svg class="rh-chart" id="rhChart" viewBox="0 0 400 160" xmlns="http://www.w3.org/2000/svg"></svg>
+    <div class="legend">
+      <span><i style="background:var(--line-lower)"></i>Front left</span>
+      <span><i style="background:var(--line-upper)"></i>Front right</span>
+      <span><i style="background:var(--accent)"></i>Rear left</span>
+      <span><i style="background:var(--ink);opacity:.6"></i>Rear right</span>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>Logged entries</h2>
+    <div id="rhTableWrap"></div>
+  </div>
+
+  <footer class="credit">
+    Runs entirely in your browser — nothing is sent anywhere, and every entry is saved locally as soon as you add it.
   </footer>
   </section>
   </main>
@@ -1995,6 +2119,237 @@ footer.credit a{ color:var(--accent-2); }
   buildStaticLayer();
   makeDynamicSkeleton();
   renderPivotFields();
+  render();
+})();
+</script>
+<script>
+(function(){
+  "use strict";
+
+  // ---------- persistence ----------
+  // Stored as a plain array of entries, not wrapped in an object — this log doesn't
+  // need any other top-level state, and this tool doesn't read the shared Vehicle
+  // Profile: ride height is its own measured quantity, not a design input.
+  var STORAGE_KEY = "rideheightlog-v1";
+
+  function loadEntries(){
+    try{
+      var raw = localStorage.getItem(STORAGE_KEY);
+      if(!raw) return [];
+      var parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? parsed : [];
+    }catch(e){ return []; }
+  }
+  function saveEntries(){
+    try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(entries)); }catch(e){ /* private mode / blocked storage */ }
+  }
+
+  var entries = loadEntries();
+  var confirmingId = null;
+  var confirmTimeoutHandle = null;
+
+  function todayISO(){
+    var d = new Date();
+    var mm = String(d.getMonth()+1).padStart(2,"0");
+    var dd = String(d.getDate()).padStart(2,"0");
+    return d.getFullYear() + "-" + mm + "-" + dd;
+  }
+  function genId(){
+    return Date.now().toString(36) + Math.random().toString(36).slice(2,8);
+  }
+
+  function sortedDesc(){
+    return entries.slice().sort(function(a,b){ return a.date < b.date ? 1 : (a.date > b.date ? -1 : 0); });
+  }
+  function sortedAsc(){
+    return entries.slice().sort(function(a,b){ return a.date < b.date ? -1 : (a.date > b.date ? 1 : 0); });
+  }
+
+  // ---------- table ----------
+  function escapeHtml(s){
+    return String(s).replace(/[&<>"']/g, function(c){
+      return {"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c];
+    });
+  }
+
+  function renderTable(){
+    var wrap = document.getElementById("rhTableWrap");
+    if(entries.length === 0){
+      wrap.innerHTML = '<div class="log-empty">No entries yet — log a baseline above to start tracking ride height over time.</div>';
+      return;
+    }
+    var rows = sortedDesc().map(function(entry){
+      var h = entry.heights || {};
+      var deleting = confirmingId === entry.id;
+      var btnClass = "chip small" + (deleting ? " danger" : "");
+      var btnLabel = deleting ? "Confirm delete?" : "Delete";
+      return '<tr>' +
+        '<td>' + escapeHtml(entry.date) + '</td>' +
+        '<td class="num">' + (typeof h.FL==="number" ? h.FL.toFixed(3).replace(/\.?0+$/,"") : "–") + '</td>' +
+        '<td class="num">' + (typeof h.FR==="number" ? h.FR.toFixed(3).replace(/\.?0+$/,"") : "–") + '</td>' +
+        '<td class="num">' + (typeof h.RL==="number" ? h.RL.toFixed(3).replace(/\.?0+$/,"") : "–") + '</td>' +
+        '<td class="num">' + (typeof h.RR==="number" ? h.RR.toFixed(3).replace(/\.?0+$/,"") : "–") + '</td>' +
+        '<td class="note-cell">' + (entry.note ? escapeHtml(entry.note) : "") + '</td>' +
+        '<td><button type="button" class="' + btnClass + '" data-action="delete" data-id="' + entry.id + '">' + btnLabel + '</button></td>' +
+        '</tr>';
+    }).join("");
+    wrap.innerHTML =
+      '<table class="log-table">' +
+        '<thead><tr><th>Date</th><th>FL</th><th>FR</th><th>RL</th><th>RR</th><th>Note</th><th></th></tr></thead>' +
+        '<tbody>' + rows + '</tbody>' +
+      '</table>';
+    wrap.querySelectorAll('[data-action="delete"]').forEach(function(btn){
+      btn.addEventListener("click", function(){
+        handleDeleteClick(btn.dataset.id);
+      });
+    });
+  }
+
+  function handleDeleteClick(id){
+    if(confirmingId === id){
+      entries = entries.filter(function(e){ return e.id !== id; });
+      confirmingId = null;
+      if(confirmTimeoutHandle){ clearTimeout(confirmTimeoutHandle); confirmTimeoutHandle = null; }
+      saveEntries();
+      render();
+    } else {
+      confirmingId = id;
+      if(confirmTimeoutHandle) clearTimeout(confirmTimeoutHandle);
+      confirmTimeoutHandle = setTimeout(function(){ confirmingId = null; renderTable(); }, 4000);
+      renderTable();
+    }
+  }
+
+  // ---------- front/rear delta stat ----------
+  function renderStats(){
+    var desc = sortedDesc();
+    var frontAvgEl = document.getElementById("rhVFrontAvg");
+    var rearAvgEl = document.getElementById("rhVRearAvg");
+    var deltaEl = document.getElementById("rhVDelta");
+    var note = document.getElementById("rhDeltaNote");
+
+    if(desc.length === 0){
+      frontAvgEl.textContent = "–"; rearAvgEl.textContent = "–"; deltaEl.textContent = "–";
+      note.textContent = "Log an entry to see front/rear numbers.";
+      return;
+    }
+
+    var h = desc[0].heights || {};
+    if([h.FL,h.FR,h.RL,h.RR].some(function(v){ return typeof v !== "number"; })){
+      frontAvgEl.textContent = "–"; rearAvgEl.textContent = "–"; deltaEl.textContent = "–";
+      note.textContent = "Most recent entry is missing a corner reading.";
+      return;
+    }
+
+    var frontAvg = (h.FL + h.FR) / 2;
+    var rearAvg = (h.RL + h.RR) / 2;
+    var delta = frontAvg - rearAvg;
+
+    frontAvgEl.textContent = frontAvg.toFixed(2);
+    rearAvgEl.textContent = rearAvg.toFixed(2);
+    deltaEl.textContent = (delta >= 0 ? "+" : "") + delta.toFixed(2);
+
+    if(Math.abs(delta) < 0.05){
+      note.textContent = "Roughly level front-to-rear, as of " + desc[0].date + ".";
+    } else if(delta > 0){
+      note.textContent = "Nose-high — front sits higher than rear, as of " + desc[0].date + ".";
+    } else {
+      note.textContent = "Nose-low — front sits lower than rear, as of " + desc[0].date + ".";
+    }
+  }
+
+  // ---------- chart ----------
+  var NS = "http://www.w3.org/2000/svg";
+  function elNS(tag, attrs){
+    var e = document.createElementNS(NS, tag);
+    for(var k in attrs) e.setAttribute(k, attrs[k]);
+    return e;
+  }
+
+  function renderChart(){
+    var panel = document.getElementById("rhChartPanel");
+    var asc = sortedAsc().filter(function(e){
+      var h = e.heights || {};
+      return typeof h.FL==="number" && typeof h.FR==="number" && typeof h.RL==="number" && typeof h.RR==="number";
+    });
+    var n = asc.length;
+    if(n < 2){ panel.hidden = true; return; }
+    panel.hidden = false;
+
+    var svg = document.getElementById("rhChart");
+    svg.innerHTML = "";
+
+    var allHeights = [];
+    asc.forEach(function(e){ ["FL","FR","RL","RR"].forEach(function(k){ allHeights.push(e.heights[k]); }); });
+    var minH = Math.min.apply(null, allHeights), maxH = Math.max.apply(null, allHeights);
+    if(minH === maxH){ minH -= 1; maxH += 1; }
+    var pad = (maxH - minH) * 0.12;
+    minH -= pad; maxH += pad;
+
+    var x0 = 40, x1 = 388, y0 = 14, y1 = 132;
+    function xFor(i){ return x0 + (x1-x0) * (i/(n-1)); }
+    function yFor(v){ return y1 - (y1-y0) * (v-minH)/(maxH-minH); }
+
+    svg.appendChild(elNS("line",{x1:x0,y1:y1,x2:x1,y2:y1,stroke:"var(--grid)","stroke-width":1}));
+    svg.appendChild(elNS("line",{x1:x0,y1:y0,x2:x0,y2:y1,stroke:"var(--grid)","stroke-width":1}));
+
+    var maxLbl = elNS("text",{x:x0-4,y:y0+4,"text-anchor":"end",class:"axis-label"});
+    maxLbl.textContent = maxH.toFixed(1) + '"';
+    var minLbl = elNS("text",{x:x0-4,y:y1,"text-anchor":"end",class:"axis-label"});
+    minLbl.textContent = minH.toFixed(1) + '"';
+    svg.appendChild(maxLbl); svg.appendChild(minLbl);
+
+    var series = [
+      {key:"FL", color:"var(--line-lower)", opacity:0.9},
+      {key:"FR", color:"var(--line-upper)", opacity:0.9},
+      {key:"RL", color:"var(--accent)", opacity:0.9},
+      {key:"RR", color:"var(--ink)", opacity:0.6}
+    ];
+    series.forEach(function(s){
+      var pts = asc.map(function(e,i){ return xFor(i) + "," + yFor(e.heights[s.key]); }).join(" ");
+      svg.appendChild(elNS("polyline",{points:pts, fill:"none", stroke:s.color, "stroke-width":2, opacity:s.opacity}));
+      asc.forEach(function(e,i){
+        svg.appendChild(elNS("circle",{cx:xFor(i), cy:yFor(e.heights[s.key]), r:2.5, fill:s.color, opacity:s.opacity}));
+      });
+    });
+
+    var firstLbl = elNS("text",{x:xFor(0), y:y1+14, "text-anchor":"start", class:"axis-label"});
+    firstLbl.textContent = asc[0].date;
+    var lastLbl = elNS("text",{x:xFor(n-1), y:y1+14, "text-anchor":"end", class:"axis-label"});
+    lastLbl.textContent = asc[n-1].date;
+    svg.appendChild(firstLbl); svg.appendChild(lastLbl);
+  }
+
+  function render(){
+    renderTable();
+    renderStats();
+    renderChart();
+  }
+
+  // ---------- add entry ----------
+  document.getElementById("rhBtnAdd").addEventListener("click", function(){
+    var date = document.getElementById("rhDate").value || todayISO();
+    var fl = parseFloat(document.getElementById("rhFL").value);
+    var fr = parseFloat(document.getElementById("rhFR").value);
+    var rl = parseFloat(document.getElementById("rhRL").value);
+    var rr = parseFloat(document.getElementById("rhRR").value);
+    if([fl,fr,rl,rr].some(function(v){ return isNaN(v); })) return;
+    var note = document.getElementById("rhNote").value.trim();
+
+    entries.push({ id: genId(), date: date, heights: {FL:fl, FR:fr, RL:rl, RR:rr}, note: note });
+    saveEntries();
+
+    document.getElementById("rhFL").value = "";
+    document.getElementById("rhFR").value = "";
+    document.getElementById("rhRL").value = "";
+    document.getElementById("rhRR").value = "";
+    document.getElementById("rhNote").value = "";
+    document.getElementById("rhDate").value = todayISO();
+
+    render();
+  });
+
+  document.getElementById("rhDate").value = todayISO();
   render();
 })();
 </script>
