@@ -181,6 +181,13 @@ input[type="range"]::-moz-range-thumb{
 }
 .field input[type="number"]:focus-visible{ outline:2px solid var(--accent-2); outline-offset:1px; }
 
+.mode-tabs{ display:flex; gap:8px; }
+.mode-tabs button.chip{ flex:1; }
+
+.freq-gauge{ width:100%; }
+.freq-gauge .zone-label{ font-family:'JetBrains Mono',monospace; font-size:9px; fill:var(--muted); }
+.freq-gauge .val-label{ font-family:'JetBrains Mono',monospace; font-size:11px; font-weight:700; fill:var(--ink); }
+
 .notes{ font-size:.76rem; line-height:1.6; color:var(--muted); }
 .notes strong{color:var(--ink);}
 .notes dl{margin:0;}
@@ -214,7 +221,7 @@ footer.credit a{ color:var(--accent-2); }
     <div class="nav-group">
       <div class="group-label">Suspension</div>
       <button class="nav-item active" data-view="view-4link" type="button">4-Link Geometry</button>
-      <button class="nav-item disabled" type="button" disabled>Spring &amp; Bag Rate <span class="soon">Soon</span></button>
+      <button class="nav-item" data-view="view-springrate" type="button">Spring &amp; Bag Rate</button>
       <button class="nav-item disabled" type="button" disabled>Steering Geometry <span class="soon">Soon</span></button>
       <button class="nav-item disabled" type="button" disabled>Ride Height Log <span class="soon">Soon</span></button>
     </div>
@@ -362,6 +369,185 @@ footer.credit a{ color:var(--accent-2); }
 
   <footer class="credit">
     Runs entirely in your browser — nothing is sent anywhere, and your geometry is saved locally via the Save button.
+  </footer>
+  </section>
+
+  <section class="app" id="view-springrate" data-view-panel hidden>
+  <header class="top">
+    <div class="title-block">
+      <h1>Spring &amp; Bag Rate</h1>
+      <div class="sub">Corner weight → wheel rate → ride frequency, for coil springs and air bags.</div>
+    </div>
+    <div class="top-actions">
+      <button class="chip" id="srBtnReset" type="button">Reset</button>
+      <button class="chip primary" id="srBtnSave" type="button">Save to browser</button>
+    </div>
+  </header>
+
+  <div class="layout">
+    <div class="panel">
+      <h2>Mode</h2>
+      <div class="mode-tabs">
+        <button class="chip primary" id="srModeCoil" type="button">Coil spring</button>
+        <button class="chip" id="srModeAir" type="button">Air spring (bag)</button>
+      </div>
+
+      <div style="margin-top:16px" id="srCoilFields">
+        <h2>Coil inputs</h2>
+        <div class="field-group">
+          <div class="field">
+            <label for="srCoilRate">Spring rate</label>
+            <input type="number" id="srCoilRate" step="5" />
+            <div class="hint">Rate stamped/measured on the spring itself, lb/in — not the wheel rate.</div>
+          </div>
+          <div class="field">
+            <label for="srCoilFreeLen">Free length</label>
+            <input type="number" id="srCoilFreeLen" step="0.25" />
+            <div class="hint">Unloaded spring length, inches. Used only to sanity-check deflection against available travel.</div>
+          </div>
+          <div class="field">
+            <label for="srCoilMR">Motion ratio</label>
+            <input type="number" id="srCoilMR" step="0.01" />
+            <div class="hint">Wheel travel ÷ spring travel at this corner. 1.0 = spring sits right over the wheel.</div>
+          </div>
+        </div>
+      </div>
+
+      <div style="margin-top:16px" id="srAirFields" hidden>
+        <h2>Air spring inputs</h2>
+        <div class="field-group">
+          <div class="field">
+            <label for="srBagPreset">Bag preset</label>
+            <select id="srBagPreset" style="font-family:'JetBrains Mono',monospace;font-size:.78rem;background:var(--surface-2);border:1px solid var(--grid);color:var(--ink);border-radius:3px;padding:5px 6px;">
+              <option value="custom">Custom (enter below)</option>
+              <option value="ss131">Slam Specialties SS-131 (7")</option>
+              <option value="ss221">Slam Specialties SS-221 (9")</option>
+              <option value="fs266">Firestone 266C (double convoluted)</option>
+              <option value="fs2600">Firestone 2600 (sleeve)</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="srBagPressure">Bag pressure (gauge)</label>
+            <input type="number" id="srBagPressure" step="1" />
+            <div class="hint">psi at the bag. Effective spring rate rises with pressure — air isn't a linear spring like a coil.</div>
+          </div>
+          <div class="field">
+            <label for="srBagArea">Effective area</label>
+            <input type="number" id="srBagArea" step="0.5" />
+            <div class="hint">in². Piston/pad area the air pressure pushes against — not the bag's outside diameter.</div>
+          </div>
+          <div class="field">
+            <label for="srBagVolume">Internal volume</label>
+            <input type="number" id="srBagVolume" step="5" />
+            <div class="hint">in³, including any external air tank/line plumbed to the bag at ride height.</div>
+          </div>
+          <div class="field">
+            <label for="srAirMR">Motion ratio</label>
+            <input type="number" id="srAirMR" step="0.01" />
+            <div class="hint">Wheel travel ÷ bag travel at this corner. 1.0 = bag sits right over the wheel.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="side-col" style="display:flex;flex-direction:column;gap:16px;">
+      <div class="panel">
+        <h2>Corner weights</h2>
+        <div class="field-group">
+          <div class="field">
+            <label for="srCornerActive">Corner being calculated</label>
+            <select id="srCornerActive" style="font-family:'JetBrains Mono',monospace;font-size:.78rem;background:var(--surface-2);border:1px solid var(--grid);color:var(--ink);border-radius:3px;padding:5px 6px;">
+              <option value="FL">Front left</option>
+              <option value="FR">Front right</option>
+              <option value="RL">Rear left</option>
+              <option value="RR">Rear right</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="srWtFL">Front left</label>
+            <input type="number" id="srWtFL" step="5" />
+          </div>
+          <div class="field">
+            <label for="srWtFR">Front right</label>
+            <input type="number" id="srWtFR" step="5" />
+          </div>
+          <div class="field">
+            <label for="srWtRL">Rear left</label>
+            <input type="number" id="srWtRL" step="5" />
+          </div>
+          <div class="field">
+            <label for="srWtRR">Rear right</label>
+            <input type="number" id="srWtRR" step="5" />
+          </div>
+          <div class="hint">Corner weights in lb, from scales if you have them. The "corner being calculated" selector picks which one feeds the numbers below.</div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h2>Results</h2>
+        <div class="readout-grid">
+          <div class="stat" id="srStatSpringRate">
+            <div class="k" id="srSpringRateLabel">Spring rate</div>
+            <div class="v"><span id="srVSpringRate">–</span><span class="unit">lb/in</span></div>
+          </div>
+          <div class="stat">
+            <div class="k">Wheel rate</div>
+            <div class="v"><span id="srVWheelRate">–</span><span class="unit">lb/in</span></div>
+          </div>
+          <div class="stat">
+            <div class="k">Ride frequency</div>
+            <div class="v"><span id="srVFreqHz">–</span><span class="unit">Hz</span></div>
+          </div>
+          <div class="stat">
+            <div class="k">Ride frequency</div>
+            <div class="v"><span id="srVFreqCpm">–</span><span class="unit">cpm</span></div>
+          </div>
+          <div class="stat wide" id="srStatDeflection">
+            <div class="k" id="srDeflectionLabel">Static deflection</div>
+            <div class="v"><span id="srVDeflection">–</span><span class="unit">in</span></div>
+          </div>
+        </div>
+        <svg class="freq-gauge" id="srGauge" viewBox="0 0 400 90" xmlns="http://www.w3.org/2000/svg"></svg>
+        <div class="notes" id="srFreqNote" style="margin-top:8px"></div>
+      </div>
+
+      <div class="panel">
+        <details class="help" open>
+          <summary>What do these settings mean?</summary>
+          <div class="notes">
+            <dl>
+              <dt>Spring rate vs. wheel rate</dt>
+              <dd><strong>Spring rate</strong> is a property of the spring or bag alone — lb of force per inch it compresses, measured along its own axis. <strong>Wheel rate</strong> is what the wheel actually feels, measured along the wheel's travel. They're rarely the same number because the spring usually isn't mounted directly over the wheel.</dd>
+
+              <dt>Motion ratio</dt>
+              <dd>The ratio of wheel travel to spring travel at the spring's mounting point (wheel travel ÷ spring travel). Because the spring resists motion at its own end, not the wheel's, wheel rate scales with the <em>square</em> of motion ratio: <strong>wheel rate = spring rate × MR²</strong>. A spring mounted at MR 0.7 (spring moves less than the wheel) gives a much softer wheel rate than the same spring at MR 1.0.</dd>
+
+              <dt>Ride frequency — and why it matters more than spring rate alone</dt>
+              <dd>Ride frequency is how many times per second (or cycles per minute) the sprung corner would bounce on its spring if disturbed. It folds wheel rate <em>and</em> the weight it's supporting into one number, which is why it's the number that actually tracks "ride quality" — the same wheel rate feels completely different under a light corner than a heavy one. Roughly: soft street/cruiser rides land around 1.0–1.5 Hz, firmer sport setups run 1.5–2.0 Hz, and race/off-road setups push higher still. Rear frequency is usually tuned slightly above front to help control pitch.</dd>
+
+              <dt>Static deflection / sag</dt>
+              <dd>How far the spring compresses under the corner's static weight alone — <strong>corner weight ÷ spring rate</strong> (measured at the spring, not the wheel). Useful for checking the spring isn't already near coil-bind or its free length before travel even starts.</dd>
+
+              <dt>Why an air spring's rate isn't constant (unlike a coil)</dt>
+              <dd>A coil's rate is fixed by its wire and geometry. An air spring's rate comes from compressing a gas, so it climbs as the bag is loaded and pressure rises — there's no single "spring rate" for a bag, only a rate <em>at a given pressure</em>. This tool uses the standard adiabatic approximation <strong>k ≈ n·P·A² / V</strong> (n≈1.4, P absolute pressure, A effective area, V internal volume) to estimate that instantaneous rate. Lower internal volume (small bag, no extra air tank) makes the rate climb faster with pressure; adding volume softens and flattens the curve.</dd>
+
+              <dt>Bag presets</dt>
+              <dd>The preset list plugs in rough effective-area and volume figures for a few common bag families so you can get a ballpark fast — swap to "Custom" and enter your bag's actual spec-sheet numbers (or measured volume including lines/tank) for anything you'll cut brackets against.</dd>
+            </dl>
+          </div>
+        </details>
+      </div>
+
+      <div class="panel">
+        <div class="notes">
+          <strong>Limits of this model:</strong> both modes assume a simple linear (coil) or adiabatic-gas (air) spring in isolation — they don't account for bump stops, droop limiters, helper springs, leaf-spring progressive rate, or a shock's own compression damping. Air spring area and volume also change somewhat through travel on a real bag; treat the output as a starting point for a given ride height, not a full travel curve.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <footer class="credit">
+    Runs entirely in your browser — nothing is sent anywhere, and your inputs are saved locally via the Save button.
   </footer>
   </section>
   </main>
@@ -782,6 +968,241 @@ footer.credit a{ color:var(--accent-2); }
   makeDynamicSkeleton();
   renderPivotFields();
   render();
+})();
+</script>
+<script>
+(function(){
+  "use strict";
+
+  // ---------- persistence ----------
+  var STORAGE_KEY = "springrate-v1";
+
+  var defaults = {
+    mode: "coil",
+    corner: "FL",
+    weights: { FL:750, FR:750, RL:900, RR:900 },
+    coil: { rate:180, freeLen:14, mr:0.75 },
+    air: { preset:"custom", pressure:80, area:14, volume:220, mr:0.75 }
+  };
+
+  // rough ballpark effective-area (in²) / internal volume (in³) figures for a few common bags,
+  // for a quick estimate only — always use spec-sheet or measured numbers for real brackets.
+  var bagPresets = {
+    ss131:  { label:"Slam Specialties SS-131 (7\")",  area:14.5, volume:130 },
+    ss221:  { label:"Slam Specialties SS-221 (9\")",  area:21.0, volume:210 },
+    fs266:  { label:"Firestone 266C (double convoluted)", area:23.0, volume:230 },
+    fs2600: { label:"Firestone 2600 (sleeve)", area:16.0, volume:260 }
+  };
+
+  function loadState(){
+    try{
+      var raw = localStorage.getItem(STORAGE_KEY);
+      if(!raw) return JSON.parse(JSON.stringify(defaults));
+      var parsed = JSON.parse(raw);
+      var merged = JSON.parse(JSON.stringify(defaults));
+      for(var k in merged){
+        if(parsed[k]===undefined) continue;
+        if(typeof merged[k]==="object" && merged[k]!==null){
+          for(var kk in merged[k]){ if(parsed[k][kk]!==undefined) merged[k][kk]=parsed[k][kk]; }
+        } else {
+          merged[k] = parsed[k];
+        }
+      }
+      return merged;
+    }catch(e){ return JSON.parse(JSON.stringify(defaults)); }
+  }
+  function saveState(){
+    try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }catch(e){ /* private mode / blocked storage */ }
+  }
+
+  var state = loadState();
+
+  // ---------- math ----------
+  function wheelRate(springRate, mr){ return springRate * mr * mr; }
+  function rideFreqHz(wheelRateLbIn, weightLb){
+    // f = (1/2π) * sqrt(k/m), with k in lb/in and weight in lb converted to consistent units via g=386.4 in/s²
+    if(weightLb<=0 || wheelRateLbIn<=0) return null;
+    var k = wheelRateLbIn; // lb/in
+    var m = weightLb / 386.4; // lb·s²/in (slugs-ish in inch units)
+    return (1/(2*Math.PI)) * Math.sqrt(k/m);
+  }
+  function airSpringRate(pressurePsiGauge, areaIn2, volumeIn3){
+    var n = 1.4;
+    var pAbs = pressurePsiGauge + 14.7;
+    if(volumeIn3<=0) return null;
+    return (n * pAbs * areaIn2 * areaIn2) / volumeIn3;
+  }
+
+  // ---------- gauge ----------
+  var NS = "http://www.w3.org/2000/svg";
+  function el(tag, attrs){
+    var e = document.createElementNS(NS, tag);
+    for(var k in attrs) e.setAttribute(k, attrs[k]);
+    return e;
+  }
+  var freqZones = [
+    { from:0.0, to:1.3, label:"Soft / cruiser", color:"var(--line-lower)" },
+    { from:1.3, to:1.9, label:"Sport", color:"var(--accent)" },
+    { from:1.9, to:3.0, label:"Race / off-road", color:"var(--danger)" }
+  ];
+  var GAUGE_MIN = 0.0, GAUGE_MAX = 3.0;
+  function buildGauge(){
+    var svg = document.getElementById("srGauge");
+    svg.innerHTML = "";
+    var x0 = 10, x1 = 390, y = 40, h = 22;
+    function xFor(v){ return x0 + (x1-x0) * (Math.max(GAUGE_MIN,Math.min(GAUGE_MAX,v))-GAUGE_MIN)/(GAUGE_MAX-GAUGE_MIN); }
+    freqZones.forEach(function(z){
+      var xa = xFor(z.from), xb = xFor(z.to);
+      svg.appendChild(el("rect",{x:xa, y:y, width:(xb-xa), height:h, fill:z.color, opacity:.28}));
+      var lbl = el("text",{x:(xa+xb)/2, y:y+h+14, "text-anchor":"middle", class:"zone-label"});
+      lbl.textContent = z.label;
+      svg.appendChild(lbl);
+    });
+    svg.appendChild(el("rect",{x:x0, y:y, width:(x1-x0), height:h, fill:"none", stroke:"var(--grid)", "stroke-width":1}));
+    window.srMarker = el("line",{x1:x0, y1:y-8, x2:x0, y2:y+h+8, stroke:"var(--ink)", "stroke-width":2.5});
+    svg.appendChild(window.srMarker);
+    window.srMarkerLabel = el("text",{x:x0, y:y-12, "text-anchor":"middle", class:"val-label"});
+    svg.appendChild(window.srMarkerLabel);
+    window.srGaugeXFor = xFor;
+  }
+
+  // ---------- UI wiring ----------
+  function setMode(mode){
+    state.mode = mode;
+    document.getElementById("srCoilFields").hidden = mode!=="coil";
+    document.getElementById("srAirFields").hidden = mode!=="air";
+    document.getElementById("srModeCoil").classList.toggle("primary", mode==="coil");
+    document.getElementById("srModeAir").classList.toggle("primary", mode==="air");
+    document.getElementById("srDeflectionLabel").textContent = mode==="coil" ? "Static deflection" : "Deflection (approx, at ride pressure)";
+    document.getElementById("srSpringRateLabel").textContent = mode==="coil" ? "Spring rate" : "Effective spring rate";
+    render();
+  }
+
+  document.getElementById("srModeCoil").addEventListener("click", function(){ setMode("coil"); saveState(); });
+  document.getElementById("srModeAir").addEventListener("click", function(){ setMode("air"); saveState(); });
+
+  function bindNumber(id, obj, key){
+    var input = document.getElementById(id);
+    input.value = obj[key];
+    input.addEventListener("input", function(){
+      var v = parseFloat(input.value);
+      if(!isNaN(v)){ obj[key]=v; render(); }
+    });
+    input.addEventListener("change", saveState);
+  }
+  bindNumber("srCoilRate", state.coil, "rate");
+  bindNumber("srCoilFreeLen", state.coil, "freeLen");
+  bindNumber("srCoilMR", state.coil, "mr");
+  bindNumber("srBagPressure", state.air, "pressure");
+  bindNumber("srBagArea", state.air, "area");
+  bindNumber("srBagVolume", state.air, "volume");
+  bindNumber("srAirMR", state.air, "mr");
+
+  bindNumber("srWtFL", state.weights, "FL");
+  bindNumber("srWtFR", state.weights, "FR");
+  bindNumber("srWtRL", state.weights, "RL");
+  bindNumber("srWtRR", state.weights, "RR");
+
+  var cornerSelect = document.getElementById("srCornerActive");
+  cornerSelect.value = state.corner;
+  cornerSelect.addEventListener("change", function(){
+    state.corner = cornerSelect.value;
+    render(); saveState();
+  });
+
+  var presetSelect = document.getElementById("srBagPreset");
+  presetSelect.value = state.air.preset;
+  presetSelect.addEventListener("change", function(){
+    state.air.preset = presetSelect.value;
+    var preset = bagPresets[state.air.preset];
+    if(preset){
+      state.air.area = preset.area;
+      state.air.volume = preset.volume;
+      document.getElementById("srBagArea").value = state.air.area;
+      document.getElementById("srBagVolume").value = state.air.volume;
+    }
+    render(); saveState();
+  });
+
+  function render(){
+    var weight = state.weights[state.corner] || 0;
+
+    var springRate, wheelRt, deflection;
+    if(state.mode==="coil"){
+      springRate = state.coil.rate;
+      wheelRt = wheelRate(springRate, state.coil.mr);
+      deflection = springRate>0 ? weight/springRate : null;
+    } else {
+      springRate = airSpringRate(state.air.pressure, state.air.area, state.air.volume);
+      wheelRt = springRate!==null ? wheelRate(springRate, state.air.mr) : null;
+      deflection = (springRate && springRate>0) ? weight/springRate : null;
+    }
+
+    var freq = wheelRt!==null ? rideFreqHz(wheelRt, weight) : null;
+
+    document.getElementById("srVSpringRate").textContent = springRate===null ? "n/a" : springRate.toFixed(0);
+    document.getElementById("srVWheelRate").textContent = wheelRt===null ? "n/a" : wheelRt.toFixed(0);
+    document.getElementById("srVFreqHz").textContent = freq===null ? "n/a" : freq.toFixed(2);
+    document.getElementById("srVFreqCpm").textContent = freq===null ? "n/a" : (freq*60).toFixed(0);
+    document.getElementById("srVDeflection").textContent = deflection===null ? "n/a" : deflection.toFixed(2);
+
+    var statDefl = document.getElementById("srStatDeflection");
+    statDefl.className = "stat wide";
+    if(state.mode==="coil" && deflection!==null && state.coil.freeLen>0){
+      if(deflection >= state.coil.freeLen*0.6) statDefl.classList.add("flag-bad");
+      else if(deflection >= state.coil.freeLen*0.4) statDefl.classList.add("flag-warn");
+    }
+
+    if(window.srGaugeXFor){
+      var xFor = window.srGaugeXFor;
+      var v = freq===null ? GAUGE_MIN : freq;
+      var x = xFor(v);
+      window.srMarker.setAttribute("x1", x); window.srMarker.setAttribute("x2", x);
+      window.srMarkerLabel.setAttribute("x", x);
+      window.srMarkerLabel.textContent = freq===null ? "" : freq.toFixed(2)+" Hz";
+    }
+
+    var note = document.getElementById("srFreqNote");
+    if(freq===null){
+      note.innerHTML = "Enter a valid spring rate/pressure and corner weight to see ride frequency.";
+    } else if(freq < 1.3){
+      note.innerHTML = "<strong>Soft / cruiser range.</strong> Plush ride, more body motion — typical of a mellow street setup.";
+    } else if(freq < 1.9){
+      note.innerHTML = "<strong>Sport range.</strong> Firmer, more controlled — a common target for a truck that still rides on the street but corners with some confidence.";
+    } else {
+      note.innerHTML = "<strong>Race / off-road range.</strong> Stiff and fast-reacting — good for high-load or high-speed work, harsh for a daily cruiser.";
+    }
+  }
+
+  document.getElementById("srBtnReset").addEventListener("click", function(){
+    state = JSON.parse(JSON.stringify(defaults));
+    document.getElementById("srCoilRate").value = state.coil.rate;
+    document.getElementById("srCoilFreeLen").value = state.coil.freeLen;
+    document.getElementById("srCoilMR").value = state.coil.mr;
+    document.getElementById("srBagPressure").value = state.air.pressure;
+    document.getElementById("srBagArea").value = state.air.area;
+    document.getElementById("srBagVolume").value = state.air.volume;
+    document.getElementById("srAirMR").value = state.air.mr;
+    document.getElementById("srWtFL").value = state.weights.FL;
+    document.getElementById("srWtFR").value = state.weights.FR;
+    document.getElementById("srWtRL").value = state.weights.RL;
+    document.getElementById("srWtRR").value = state.weights.RR;
+    cornerSelect.value = state.corner;
+    presetSelect.value = state.air.preset;
+    setMode(state.mode);
+    saveState();
+  });
+
+  document.getElementById("srBtnSave").addEventListener("click", function(){
+    saveState();
+    var btn = document.getElementById("srBtnSave");
+    var old = btn.textContent;
+    btn.textContent = "Saved ✓";
+    setTimeout(function(){ btn.textContent = old; }, 1200);
+  });
+
+  buildGauge();
+  setMode(state.mode);
 })();
 </script>
 </body>

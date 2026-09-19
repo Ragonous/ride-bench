@@ -1,6 +1,6 @@
 # Ride Bench
 
-Suspension design tools for the shop. Currently: an interactive rear 4-link geometry tool for the Li'l Or'nge build (1991.5 Dodge D250 Cummins on a 1975 D150 body). More tools (spring/bag rate, steering geometry, ride height log) slot into the sidebar as they're built.
+Suspension design tools for the shop, built for the Li'l Or'nge build (1991.5 Dodge D250 Cummins on a 1975 D150 body). Currently: an interactive rear 4-link geometry tool and a spring/bag rate calculator. More tools (steering geometry, ride height log) slot into the sidebar as they're built.
 
 This is a single self-contained `index.html` file — no build step, no server, no dependencies to install. It runs entirely in your browser; nothing is uploaded anywhere, and the only "backend" is your browser's local storage, used to remember your last geometry on your own device.
 
@@ -41,8 +41,19 @@ The page has a "What do these settings mean?" panel built in (open by default) e
 
 **Limits:** this is a 2D side-view approximation. It ignores lateral link angles, bushing compliance, and how anti-squat interacts with anti-lift under braking. Use it to compare link layouts and sanity-check geometry before cutting brackets — not as a replacement for measuring the real truck.
 
+### Spring & Bag Rate
+Corner weight → wheel rate → ride frequency, for either a coil spring or an air spring (bag). Switch modes with the tabs at the top of the tool.
+
+- **Coil mode** — enter the spring's own rate (lb/in), free length, and the motion ratio at that corner. The tool computes wheel rate (`spring rate × motion ratio²`), ride frequency, and static deflection/sag, and flags deflection that's eating a large share of the spring's free length.
+- **Air spring mode** — since a bag isn't a linear spring, its effective rate is estimated from bag pressure, effective piston area, and internal volume (including any plumbed air tank) using the standard adiabatic approximation `k ≈ n·P·A² / V` (n≈1.4, P absolute pressure). A small preset list plugs in ballpark area/volume figures for a few common Slam Specialties/Firestone bags — swap to "Custom" for real spec-sheet or measured numbers.
+- **Corner weights** — a 4-corner weight panel (front left/right, rear left/right) feeds whichever corner is selected as "active," same idea as the 4-link tool's vehicle reference panel.
+- **Ride frequency gauge** — a live bar showing where the calculated frequency lands relative to soft/cruiser, sport, and race/off-road ranges, since ride frequency (not spring rate alone) is what actually tracks perceived ride quality.
+
+The page has its own "What do these settings mean?" panel explaining spring rate vs. wheel rate, motion ratio, why ride frequency matters more than spring rate alone, static deflection, and why an air spring's rate changes with pressure while a coil's doesn't.
+
+**Limits:** both modes model a spring/bag in isolation — no bump stops, droop limiters, helper springs, leaf progressive rate, or shock damping, and a real bag's area/volume shift somewhat through travel. Treat the output as a starting point at a given ride height, not a full travel curve.
+
 ### Coming next
-- **Spring & Bag Rate** — corner weight → wheel rate → ride frequency, for coil, leaf, and air spring setups.
 - **Steering Geometry** — bump-steer and Ackerman checks for the coil/radius-arm front end.
 - **Ride Height Log** — track measured ride heights and settings changes over time.
 
@@ -54,8 +65,8 @@ Everything lives in one `index.html` — markup, styles, and logic — so there'
 2. Add a `<button class="nav-item" data-view="view-<name>">...</button>` in the sidebar, and drop the `disabled`/`Soon` styling from its placeholder.
 3. Give the new tool's script its own IIFE (see the 4-link tool's `<script>` block for the pattern) so its variables don't collide with other tools' scripts.
 
-The 4-link tool's geometry math (four-bar linkage solve, anti-squat calculation) is in the `<script>` block near the bottom of `index.html`, with comments marking each section.
+The 4-link tool's geometry math (four-bar linkage solve, anti-squat calculation) and the spring rate tool's math (wheel rate, ride frequency, adiabatic air spring rate) each live in their own `<script>` block near the bottom of `index.html`, with comments marking each section.
 
 ## Known limitations
 
-The 4-link tool is a 2D side-view approximation — see above. Treat every calculator here as a way to compare designs and sanity-check geometry before cutting metal, not a replacement for measuring the real truck.
+The 4-link tool is a 2D side-view approximation, and the spring rate tool models a spring/bag in isolation (see above for both). Treat every calculator here as a way to compare designs and sanity-check geometry before cutting metal, not a replacement for measuring the real truck.
